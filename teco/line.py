@@ -15,9 +15,15 @@ class TModBus(LineOnlyReceiver):
         self.process(line)
         
     def connectionMade(self):
+        self.factory.clients.append(self)
         self.peer = self.transport.getPeer()
         self.transport.write("Bienvenido %s:%d" % (self.peer.host, self.peer.port) + '\r\n')
-
+        self.transport.write("Ya somos %d" % (len(self.factory.clients),) + '\r\n')
+    
+    def connectionLost(self, reason):
+        self.factory.clients.remove(self)
+        #TODO: do something with reason
+        
     def process(self, line):    #FIXME: esta funcion debe detectar errores
         print '-' * 80
         print "Mensaje desde %s:%d" % (self.peer.host, self.peer.port) 
@@ -32,6 +38,9 @@ class TModBus(LineOnlyReceiver):
         
 class TModBusFactory(Factory):
     protocol = TModBus
+
+    def __init__(self):
+        self.clients = []    
 
 reactor.listenTCP(8007, TModBusFactory())
 reactor.run()
