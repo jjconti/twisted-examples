@@ -48,6 +48,7 @@ reactor.listenTCP(8007, factory)
 from twisted.conch import manhole, manhole_ssh
 from twisted.cred import portal, checkers 
 
+#TODO: hacer keys propias
 def getManholeFactory(namespace, **passwords):
     realm = manhole_ssh.TerminalRealm()
     def getManhole(_): return manhole.Manhole(namespace) 
