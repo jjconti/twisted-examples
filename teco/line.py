@@ -12,7 +12,7 @@ class TModBus(LineOnlyReceiver):
 
     def lineReceived(self, line):
         print 'Recived: ' + line
-        self.process(line)
+        #self.process(line)
         
     def connectionMade(self):
         self.factory.clients.append(self)
