@@ -44,8 +44,8 @@ class TModBusFactory(Factory):
     def paso():
         print "paso 5 segundos"
         
-    lc = LoopingCall(paso)
-    lc.start(5)
+    self.lc = LoopingCall(paso)
+    self.lc.start(5)
 
    def stopFactory(self):
        self.lc.stop()    
