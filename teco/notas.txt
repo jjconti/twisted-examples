@@ -1,3 +1,5 @@
+DEBO LEER: http://twistedmatrix.com/projects/core/documentation/howto/defer.htm
+
 CallingLoop (para polling): http://twistedmatrix.com/projects/core/documentation/howto/time.html
 
 Deferred objects para DB: http://twistedmatrix.com/projects/core/documentation/howto/rdbms.html
