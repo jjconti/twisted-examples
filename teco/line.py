@@ -46,7 +46,10 @@ class TModBusFactory(Factory):
         
     lc = LoopingCall(paso)
     lc.start(5)
-    
+
+   def stopFactory(self):
+       self.lc.stop()    
+       
     def __init__(self):
         self.clients = []    
 
