@@ -8,6 +8,8 @@ from sys import stdout
 #from twisted.python import log
 #log.startLogging(stdout)
 
+from twisted.internet.task import LoopingCall
+
 class TModBus(LineOnlyReceiver):
 
     def lineReceived(self, line):
@@ -38,7 +40,13 @@ class TModBus(LineOnlyReceiver):
         
 class TModBusFactory(Factory):
     protocol = TModBus
-
+    
+    def paso():
+        print "paso 5 segundos"
+        
+    lc = LoopingCall(paso)
+    lc.start(5)
+    
     def __init__(self):
         self.clients = []    
 
