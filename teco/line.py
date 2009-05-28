@@ -5,6 +5,7 @@ from twisted.internet import reactor
 
 from sys import stdout
 
+from constants import *
 #from twisted.python import log
 #log.startLogging(stdout)
 
@@ -13,45 +14,90 @@ from twisted.internet.task import LoopingCall
 class TModBus(LineOnlyReceiver):
 
     def lineReceived(self, line):
-        print 'Recived: ' + line
-        #self.process(line)
+        self.process(line)
         
     def connectionMade(self):
         self.factory.clients.append(self)
         self.peer = self.transport.getPeer()
-        self.transport.write("Bienvenido %s:%d" % (self.peer.host, self.peer.port) + '\r\n')
-        self.transport.write("Ya somos %d" % (len(self.factory.clients),) + '\r\n')
+        print "Nuevo cliente: %s:%d" % (self.peer.host, self.peer.port) #LOG
+        print "Total: %d" % (len(self.factory.clients),)
     
     def connectionLost(self, reason):
         self.factory.clients.remove(self)
         #TODO: do something with reason
         
     def process(self, line):    #FIXME: esta funcion debe detectar errores
-        print '-' * 80
-        print "Mensaje desde %s:%d" % (self.peer.host, self.peer.port) 
+        print "R: %s:%d %s" % (self.peer.host, self.peer.port, line)  #LOG
         if not line.startswith(':'):
-            print "Error en mensaje: no empieza con :"
+            print "Error en mensaje: no empieza con :"  #EXC
         else:
-            dispid = line[1:3]
-            print "ID de dispositivo: " + dispid
-            funcode = line[3:5]
-            print "Function Code: " + funcode
-        print '-' * 80
+            disp = int(line[1:3])   #EXC
+            func = int(line[3:5])   #EXC
+            body = line[5:]
+            print "D: %01d F: %s B: %s" % (disp, func, body)
+
+            if func not in VALID_FUNCS:
+                print "Error: funcion desconida."
+            else:
+                if func == ID:
+                    self.process(body)
+                elif func == RD:
+                    self.process_read(body)
+                elif func == WR:
+                    self.process_write_reg(body)
+
+    def process_id(self, body):
+        print body
         
+    def process_read(self, body):
+        ea1 = body[:4]
+        ea2 = body[4:8]
+        ea3 = body[8:12]
+        ea4 = body[12:16]
+        c1 = body[16:20]
+        c2 = body[20:24]
+        c3 = body[24:28]
+        c4 = body[28:32]
+        b1 = body[32:33]
+        b2 = body[32:33]
+        b3 = body[33:34]
+        b4 = body[34:35]                                    
+        i1 = body[35:36]
+        i2 = body[36:37]
+        print ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2
+
+    def process_write_reg(self, body):
+        reg = body[2:]
+        err = body[2:4]
+        if err == NOERR:
+            pass
+        elif err == ERRREG:
+            print "Error en el registro %s" % (reg,)   #LOG
+        elif err == ERRVAL:
+            print "Error en el valor %s" % (val,)  #LOG
+                        
+    def ask_id(self, disp):
+        self.sendLine(':%02d%d%02d' % (disp, ID, LR))
+    
+    def ask_read(self, disp):
+        self.sendLine(':%02d%d%02d' % (disp, RD, LR))
+
+    def ask_write_reg(self, disp, reg, val):
+        self.sendLine(':%02d%d%02d%02d%02d' % (disp, WR, reg, val, LR))
+            
 class TModBusFactory(Factory):
     protocol = TModBus
     
-    def paso():
-        print "paso 5 segundos"
-        
-    self.lc = LoopingCall(paso)
-    self.lc.start(5)
+    def paso(self):
+        print "pasaron 42 segundos"
 
-   def stopFactory(self):
-       self.lc.stop()    
+    def stopFactory(self):
+        self.lc.stop()    
        
     def __init__(self):
-        self.clients = []    
+        self.clients = []
+        self.lc = LoopingCall(self.paso)
+        self.lc.start(42)        
 
 factory = TModBusFactory()
 reactor.listenTCP(8007, factory)
