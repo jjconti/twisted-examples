@@ -27,20 +27,22 @@ class TModBus(LineOnlyReceiver):
         #TODO: do something with reason
         
     def process(self, line):    #FIXME: esta funcion debe detectar errores
-        print "R: %s:%d %s" % (self.peer.host, self.peer.port, line)  #LOG
+        #print "-%s-" % (line,)
+        #return
+        #print "R: %s:%d %s" % (self.peer.host, self.peer.port, line)  #LOG
         if not line.startswith(':'):
             print "Error en mensaje: no empieza con :"  #EXC
         else:
             disp = int(line[1:3])   #EXC
             func = int(line[3:5])   #EXC
             body = line[5:]
-            print "D: %01d F: %s B: %s" % (disp, func, body)
+            #print "D: %01d F: %s B: %s" % (disp, func, body)
 
             if func not in VALID_FUNCS:
                 print "Error: funcion desconida."
             else:
                 if func == ID:
-                    self.process(body)
+                    self.process_id(body)
                 elif func == RD:
                     self.process_read(body)
                 elif func == WR:
@@ -89,7 +91,8 @@ class TModBusFactory(Factory):
     protocol = TModBus
     
     def paso(self):
-        print "pasaron 42 segundos"
+        #print "pasaron 42 segundos"
+        pass
 
     def stopFactory(self):
         self.lc.stop()    
@@ -117,5 +120,29 @@ def getManholeFactory(namespace, **passwords):
     return f
 
 reactor.listenTCP(2222, getManholeFactory(globals(), admin='aaa'))
+
+# WEB
+from twisted.web import server, resource
+
+class Demo(resource.Resource):
+    isLeaf = 1
+
+    def __init__(self, links) :
+        resource.Resource.__init__(self)
+        self.links = links
+        self.factory = factory
+
+    def render_GET(self, request):
+        cliente = request.args['cliente']
+        disp = request.args['disp']
+        func = request.args['func'].pop()
+        if func == 'id':
+            self.factory.clients[int(cliente[0])].ask_id(int(disp[0]))
+        elif func == 'read':
+            self.factory.clients[int(cliente[0])].ask_read(int(disp[0]))        
+        return "Paquete enviado! " + func
+        
+site = server.Site(Demo([])) 
+reactor.listenTCP(8008, site)
 
 reactor.run()
