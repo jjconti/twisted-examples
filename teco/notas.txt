@@ -1,4 +1,4 @@
-DEBO LEER: http://twistedmatrix.com/projects/core/documentation/howto/defer.htm
+DEBO LEER: http://twistedmatrix.com/projects/core/documentation/howto/defer.html
 
 CallingLoop (para polling): http://twistedmatrix.com/projects/core/documentation/howto/time.html
 

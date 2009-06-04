@@ -3,6 +3,8 @@ from twisted.application import internet, service
 from twisted.internet.protocol import Factory
 from twisted.internet import reactor
 
+from twisted.enterprise import adbapi
+
 from sys import stdout
 
 from constants import *
@@ -10,7 +12,7 @@ from constants import *
 #log.startLogging(stdout)
 
 from twisted.internet.task import LoopingCall
-
+        
 class TModBus(LineOnlyReceiver):
 
     def lineReceived(self, line):
@@ -61,12 +63,17 @@ class TModBus(LineOnlyReceiver):
         c3 = body[24:28]
         c4 = body[28:32]
         b1 = body[32:33]
-        b2 = body[32:33]
-        b3 = body[33:34]
-        b4 = body[34:35]                                    
-        i1 = body[35:36]
-        i2 = body[36:37]
+        b2 = body[33:34]
+        b3 = body[34:35]
+        b4 = body[35:36]                                    
+        i1 = body[36:37]
+        i2 = body[37:38]
         print ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2
+        print "Guardando en bd"
+        dbpool.runQuery('''INSERT INTO valores (sitio, dispositivo, a1, a2, a3, a4,
+                           c1, c2, c3, c4, b1, b2, b3, b4, i1, i2) VALUES (%s, %s,
+                           %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+                           (2, 1, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
 
     def process_write_reg(self, body):
         reg = body[2:]
@@ -91,8 +98,8 @@ class TModBusFactory(Factory):
     protocol = TModBus
     
     def paso(self):
-        #print "pasaron 42 segundos"
-        pass
+        for c in self.clients:
+            c.ask_read(1)
 
     def stopFactory(self):
         self.lc.stop()    
@@ -100,7 +107,7 @@ class TModBusFactory(Factory):
     def __init__(self):
         self.clients = []
         self.lc = LoopingCall(self.paso)
-        self.lc.start(42)        
+        self.lc.start(60)        
 
 factory = TModBusFactory()
 reactor.listenTCP(8007, factory)
@@ -144,5 +151,9 @@ class Demo(resource.Resource):
         
 site = server.Site(Demo([])) 
 reactor.listenTCP(8008, site)
+
+# DB Pool
+dbpool = adbapi.ConnectionPool('MySQLdb', db='kimera_kimera', user='kimera_kimera', passwd='kimera_kimera')
+#dbcursor = db.cursor() 
 
 reactor.run()
