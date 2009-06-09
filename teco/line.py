@@ -98,6 +98,7 @@ class TModBusFactory(Factory):
     protocol = TModBus
     
     def paso(self):
+        print "Clientes actualmente conectados: ", len(self.clients)
         for c in self.clients:
             c.ask_read(1)
 
@@ -146,7 +147,11 @@ class Demo(resource.Resource):
         if func == 'id':
             self.factory.clients[int(cliente[0])].ask_id(int(disp[0]))
         elif func == 'read':
-            self.factory.clients[int(cliente[0])].ask_read(int(disp[0]))        
+            self.factory.clients[int(cliente[0])].ask_read(int(disp[0]))
+        elif func == 'write':
+            reg = request.args['reg']
+            val = request.args['val']
+            self.factory.clients[int(cliente[0])].ask_write_reg(int(disp[0]), int(reg[0]), int(val[0]))
         return "Paquete enviado! " + func
         
 site = server.Site(Demo([])) 
@@ -154,6 +159,5 @@ reactor.listenTCP(8008, site)
 
 # DB Pool
 dbpool = adbapi.ConnectionPool('MySQLdb', db='kimera_kimera', user='kimera_kimera', passwd='kimera_kimera')
-#dbcursor = db.cursor() 
 
 reactor.run()
