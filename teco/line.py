@@ -187,7 +187,8 @@ class MyPage(LivePage):
     def child_(self, ctx):
         return MyPage()
         
-site = appserver.NevowSite(MyPage()) 
+from nevow import appserver
+site = appserver.NevowSite(MyPage())
 reactor.listenTCP(8009, site)
 
 # DB Pool
