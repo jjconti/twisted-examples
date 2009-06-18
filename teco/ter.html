@@ -4,8 +4,9 @@
     <h2>Temperaturas</h2>
     <form name="terElement">
         <athena:handler event="onsubmit" handler="doRead" />
+        <input type="submit" value="Read" />
     </form>
-    <div name="valores" style="display:none">
+    <div name="valores">
     <span>Temperatura de sala</span><span id="temp_sala"></span><br/>
     <span>Temperatura de retorno</span><span id="temp_retorno"></span><br/>
     <span>Temperatura exterior (free cooling)</span><span id="temp_exterior"></span><br/>

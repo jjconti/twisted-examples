@@ -171,7 +171,8 @@ class TempElement(LiveElement):
 
     def read(self, message):
         #self.callRemote('addText', message)
-         self.factory.clients[0].ask_read(1)
+        print "Se apreto el boton read"
+        self.factory.clients[0].ask_read(1)
     read = expose(read)
 
 class MyPage(LivePage):
