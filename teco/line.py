@@ -70,10 +70,10 @@ class TModBus(LineOnlyReceiver):
         i2 = body[37:38]
         print ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2
         print "Guardando en bd"
-        dbpool.runQuery('''INSERT INTO valores (sitio, dispositivo, a1, a2, a3, a4,
-                           c1, c2, c3, c4, b1, b2, b3, b4, i1, i2) VALUES (%s, %s,
-                           %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                           (2, 1, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
+        #dbpool.runQuery('''INSERT INTO valores (sitio, dispositivo, a1, a2, a3, a4,
+        #                   c1, c2, c3, c4, b1, b2, b3, b4, i1, i2) VALUES (%s, %s,
+        #                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+        #                  (2, 1, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
 
         if lectores:
             l = lectores.pop()
