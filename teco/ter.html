@@ -1,0 +1,13 @@
+<div xmlns:nevow="http://nevow.com/ns/nevow/0.1"
+    xmlns:athena="http://divmod.org/ns/athena/0.7"
+    nevow:render="liveElement">
+    <h2>Temperaturas</h2>
+    <form name="terElement">
+        <athena:handler event="onsubmit" handler="doRead" />
+    </form>
+    <div name="valores" style="display:none">
+    <span>Temperatura de sala</span><span id="temp_sala"></span><br/>
+    <span>Temperatura de retorno</span><span id="temp_retorno"></span><br/>
+    <span>Temperatura exterior (free cooling)</span><span id="temp_exterior"></span><br/>
+    </div>
+</div>
