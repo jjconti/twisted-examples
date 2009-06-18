@@ -169,10 +169,10 @@ class TempElement(LiveElement):
     docFactory = xmlfile(sibpath(__file__, 'ter.html'))
     jsClass = u'TempDisplay.TempWidget'
 
-    def read(self, message):
+    def read(self):
         #self.callRemote('addText', message)
         print "Se apreto el boton read"
-        self.factory.clients[0].ask_read(1)
+        factory.clients[0].ask_read(1)
     read = expose(read)
 
 class MyPage(LivePage):

@@ -6,9 +6,9 @@ TempDisplay.TempWidget.methods(
     function __init__(self, node) {
         TempDisplay.TempWidget.upcall(self, "__init__", node);
         self.tempWidget = self.nodeByAttribute('name', 'terElement');
-        self.tempSala = self.nodeByAttribute('id', 'temp_sala');
-        self.tempRetorno = self.nodeByAttribute('id', 'temp_retorno');
-        self.tempExterior = self.nodeByAttribute('id', 'temp_exterior');
+        self.tempSala = self.nodeByAttribute('name', 'temp_sala');
+        self.tempRetorno = self.nodeByAttribute('name', 'temp_retorno');
+        self.tempExterior = self.nodeByAttribute('name', 'temp_exterior');
     },
 
     function doRead(self) {
