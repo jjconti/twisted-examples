@@ -127,7 +127,7 @@ def getManholeFactory(namespace, **passwords):
     f = manhole_ssh.ConchFactory(p)
     return f
 
-reactor.listenTCP(2222, getManholeFactory(globals(), admin='aaa'))
+reactor.listenTCP(8888, getManholeFactory(globals(), admin='aaa'))
 
 # WEB
 from twisted.web import server, resource
@@ -156,6 +156,54 @@ class Demo(resource.Resource):
         
 site = server.Site(Demo([])) 
 reactor.listenTCP(8008, site)
+
+# Nevow
+from nevow import rend, loaders, tags, appserver
+
+def greet(ctx, data):
+    name = ctx.arg('name')
+    if name is None:
+        return ''
+    return "Greetings, ", name, "!"
+
+class Form(rend.Page):
+    docFactory = loaders.stan(tags.html[
+        tags.form(action="", method="POST")[
+            tags.input(name="name"),
+            tags.input(type="submit")],
+        greet])
+
+from twisted.python.util import sibpath
+from nevow.athena import LivePage, LiveElement, expose
+from nevow.loaders import xmlfile
+from nevow.loaders import stan
+from nevow import tags as T
+from nevow import athena
+
+class EchoPage(LivePage):
+    docFactory = stan(T.html[
+        T.head(render=T.directive('liveglue')),
+        T.body(render=T.directive('myElement'))])
+
+    def render_myElement(self, ctx, data):
+        f = MyElement()
+        f.setFragmentParent(self)
+        return ctx.tag[f]
+
+    def child_(self, ctx):
+        return EchoPage()
+
+class MyElement(LiveElement):
+
+    docFactory = xmlfile(sibpath(__file__, 'template.html'))
+    jsClass = u'EchoThing.EchoWidget'
+
+    def say(self, message):
+        self.callRemote('addText', message)
+    say = expose(say)
+
+site = appserver.NevowSite(EchoPage()) 
+reactor.listenTCP(8009, site)
 
 # DB Pool
 dbpool = adbapi.ConnectionPool('MySQLdb', db='kimera_kimera', user='kimera_kimera', passwd='kimera_kimera')
