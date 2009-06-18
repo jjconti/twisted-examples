@@ -75,6 +75,10 @@ class TModBus(LineOnlyReceiver):
                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
                            (2, 1, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
 
+        if lectores:
+            l = lectores.pop()
+            l.callRemote('actualizarValores', ','.join([ea1, ea2, ea3]))
+            
     def process_write_reg(self, body):
         reg = body[2:]
         err = body[2:4]
@@ -164,6 +168,8 @@ from nevow import athena, loaders, tags as T
 from nevow.athena import LivePage, LiveElement, expose
 from nevow.loaders import xmlfile
 
+lectores = []
+
 class TempElement(LiveElement):
 
     docFactory = xmlfile(sibpath(__file__, 'ter.html'))
@@ -173,6 +179,7 @@ class TempElement(LiveElement):
         #self.callRemote('addText', message)
         print "Se apreto el boton read"
         factory.clients[0].ask_read(1)
+        lectores.append(self)
     read = expose(read)
 
 class MyPage(LivePage):
