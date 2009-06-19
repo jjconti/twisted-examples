@@ -20,8 +20,11 @@ TempDisplay.TempWidget.methods(
     function actualizarValores(self, valores) {
         // llamada por servidor para actualizar valores
         //var valores = data.split(',');
-        self.tempSala.appendChild(document.createTextNode(valores[0]));
-        self.tempRetorno.appendChild(document.createTextNode(valores[1]));
-        self.tempExterior.appendChild(document.createTextNode(valores[2]));
+        self.tempSala.removeChild();
+        self.tempSalaappendChild(document.createTextNode(' ' + valores[0]));
+        self.tempRetorno.removeChild();
+        self.tempRetorno.appendChild(document.createTextNode(' ' + valores[1]));
+        self.tempExterior.removeChild();
+        self.tempExterior.appendChild(document.createTextNode(' ' + valores[2]));
     });
 
