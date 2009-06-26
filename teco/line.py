@@ -79,7 +79,8 @@ class TModBus(LineOnlyReceiver):
             #l = lectores.pop(0)
             print len(lectores), "lectores"
             for l in lectores:
-                l.callRemote('actualizarValores', u','.join([ea1, ea2, ea3]))
+                l.callRemote('actualizarValores', u','.join([ea1, ea2, ea3, ea4, c1, c2,
+                                                             c3, c4, b1, b2, b3, b4, i1, i2]))
             
     def process_write_reg(self, body):
         reg = body[2:]
@@ -185,6 +186,11 @@ class TempElement(LiveElement):
         lectores.append(self)
     read = expose(read)
 
+    def detached(self):
+        print 45*'-'
+        print "DETACHED"
+        print 45*'-'
+        
 class MyPage(LivePage):
     docFactory = loaders.stan(T.html[
         T.head(render=T.directive('liveglue')),

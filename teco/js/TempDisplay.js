@@ -19,16 +19,20 @@ TempDisplay.TempWidget.methods(
         self.tempExteriorTxt = document.createTextNode('');
         self.tempExterior = self.nodeByAttribute('name', 'temp_exterior');
         self.tempExterior.appendChild(self.tempExteriorTxt);
+        
+        self.todoTxt = document.createTextNode('');
+        self.todo = self.nodeByAttribute('name', 'todo');
+        self.todo.appendChild(self.todoTxt);        
     },
 
     function doRead(self) {
-        // ejecuta funcion read en servidor
+        // ejecuta funcion read en el servidor
         self.callRemote("read");
         return false;
     },
 
     function actualizarValores(self, data) {
-        // llamada por servidor para actualizar valores
+        // llamada por el servidor para actualizar la pantalla
         var valores = data.split(',');
         
         self.tempSala.removeChild(self.tempSalaTxt);
@@ -42,5 +46,9 @@ TempDisplay.TempWidget.methods(
         self.tempExterior.removeChild(self.tempExteriorTxt);
         self.tempExteriorTxt = document.createTextNode(' ' + valores[2]);
         self.tempExterior.appendChild(self.tempExteriorTxt);
+
+        self.todo.removeChild(self.todoTxt);
+        self.todoTxt = document.createTextNode(' ' + valores);
+        self.todo.appendChild(self.todoTxt);
     });
 
