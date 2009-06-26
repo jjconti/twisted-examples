@@ -5,13 +5,20 @@ TempDisplay.TempWidget = Nevow.Athena.Widget.subclass('TempDisplay.TempWidget');
 TempDisplay.TempWidget.methods(
     function __init__(self, node) {
         TempDisplay.TempWidget.upcall(self, "__init__", node);
+        
         self.tempWidget = self.nodeByAttribute('name', 'terElement');
-        self.tempSala = self.nodeByAttribute('name', 'temp_sala');
-        self.tempSala.appendChild(document.createTextNode('');
+
+        self.tempSalaTxt = document.createTextNode('');
+        self.tempSala = self.nodeByAttribute('name', 'temp_sala')
+        self.tempSala.appendChild(self.tempSalaTxt);
+
+        self.tempRetornoTxt = document.createTextNode('');
         self.tempRetorno = self.nodeByAttribute('name', 'temp_retorno');
-        self.tempRetorno.appendChild(document.createTextNode('');        
+        self.tempRetorno.appendChild(self.tempRetornoTxt);
+
+        self.tempExteriorTxt = document.createTextNode('');
         self.tempExterior = self.nodeByAttribute('name', 'temp_exterior');
-        self.tempExterior.appendChild(document.createTextNode('');                
+        self.tempExterior.appendChild(self.tempExteriorTxt);
     },
 
     function doRead(self) {
@@ -23,8 +30,17 @@ TempDisplay.TempWidget.methods(
     function actualizarValores(self, data) {
         // llamada por servidor para actualizar valores
         var valores = data.split(',');
-        self.tempSala.firstChild.replaceNode(document.createTextNode(' ' + valores[0]));
-        self.tempRetorno.firstChild.replaceNode(document.createTextNode(' ' + valores[1]));
-        self.tempExterior.firstChild.replaceNode(document.createTextNode(' ' + valores[2]));                
+        
+        self.tempSala.removeChild(self.tempSalaTxt);
+        self.tempSalaTxt = document.createTextNode(' ' + valores[0]);
+        self.tempSala.appendChild(self.tempSalaTxt);
+
+        self.tempRetorno.removeChild(self.tempRetornoTxt);
+        self.tempRetornoTxt = document.createTextNode(' ' + valores[1]);
+        self.tempRetorno.appendChild(self.tempRetornoTxt);
+
+        self.tempExterior.removeChild(self.tempExteriorTxt);
+        self.tempExteriorTxt = document.createTextNode(' ' + valores[2]);
+        self.tempExterior.appendChild(self.tempExteriorTxt);
     });
 
