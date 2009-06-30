@@ -78,7 +78,7 @@ class TModBus(LineOnlyReceiver):
         if lectores:
             #l = lectores.pop(0)
             print len(lectores), "lectores"
-            for l in lectores:
+            for l in lectores.values():
                 l.callRemote('actualizarValores', u','.join([ea1, ea2, ea3, ea4, c1, c2,
                                                              c3, c4, b1, b2, b3, b4, i1, i2]))
             
@@ -172,7 +172,7 @@ from nevow import athena, loaders, tags as T
 from nevow.athena import LivePage, LiveElement, expose
 from nevow.loaders import xmlfile
 
-lectores = []
+lectores = {}
 
 class TempElement(LiveElement):
 
@@ -183,23 +183,26 @@ class TempElement(LiveElement):
         #self.callRemote('addText', message)
         print "Se apreto el boton read"
         factory.clients[0].ask_read(1)
-        lectores.append(self)
+        lectores[hash(self)] = self
     read = expose(read)
 
-    def detached(self):
-        print 45*'-'
-        print "DETACHED"
-        print 45*'-'
-        
 class MyPage(LivePage):
     docFactory = loaders.stan(T.html[
         T.head(render=T.directive('liveglue')),
         T.body(render=T.directive('myElement'))])
 
+    def beforeRender(self, ctx):
+        d = self.notifyOnDisconnect()
+        d.addErrback(self.disconn)
+
+    def disconn(self, reason):
+        print "DISCOOOOOOOOOOO"
+        del lectores[hash(self.element)]
+
     def render_myElement(self, ctx, data):
-        f = TempElement()
-        f.setFragmentParent(self)
-        return ctx.tag[f]
+        self.element = TempElement()
+        self.element.setFragmentParent(self)
+        return ctx.tag[self.element]
 
     def child_(self, ctx):
         return MyPage()
