@@ -22,7 +22,13 @@ TempDisplay.TempWidget.methods(
         
         self.todoTxt = document.createTextNode('');
         self.todo = self.nodeByAttribute('name', 'todo');
-        self.todo.appendChild(self.todoTxt);        
+        self.todo.appendChild(self.todoTxt);
+
+        // Umbrales
+
+        self.u1 = self.nodeByAttribute('name', 'u1');
+        self.u2 = self.nodeByAttribute('name', 'u2');
+        self.u3 = self.nodeByAttribute('name', 'u3');
     },
 
     function doRead(self) {
@@ -31,6 +37,12 @@ TempDisplay.TempWidget.methods(
         return false;
     },
 
+    function doChange(self) {
+        // ejecuta funcion change en el servidor
+        self.callRemote("change", self.u1.value);
+        return false;
+    },
+    
     function actualizarValores(self, data) {
         // llamada por el servidor para actualizar la pantalla
         var valores = data.split(',');

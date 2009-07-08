@@ -1,6 +1,7 @@
 <div xmlns:nevow="http://nevow.com/ns/nevow/0.1"
     xmlns:athena="http://divmod.org/ns/athena/0.7"
     nevow:render="liveElement">
+    
     <h2>Temperaturas</h2>
     <form name="terElement">
         <athena:handler event="onsubmit" handler="doRead" />
@@ -13,4 +14,15 @@
     <br/><br/>
     <span>TODO</span><span name="todo"></span><br/>
     </div>
+
+    <form name="terElementChange">
+        <athena:handler event="onsubmit" handler="doChange" />
+        <input type="submit" value="Change" />
+    </form>
+    <div name="umbrales">
+    <input type="text" name="u1" size="2" />
+    <input type="text" name="u2" size="2" />
+    <input type="text" name="u3" size="2" />
+    </div>
+    
 </div>

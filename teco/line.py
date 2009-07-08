@@ -78,9 +78,13 @@ class TModBus(LineOnlyReceiver):
         if lectores:
             #l = lectores.pop(0)
             print len(lectores), "lectores"
-            for l in lectores.values():
+            for l in lectores:
                 l.callRemote('actualizarValores', u','.join([ea1, ea2, ea3, ea4, c1, c2,
                                                              c3, c4, b1, b2, b3, b4, i1, i2]))
+        if graficos:
+            print len(graficos), "graficos"
+            for g in graficos:
+                g.callRemote("nuevoValor", u""+ea1, u""+ea2)
             
     def process_write_reg(self, body):
         reg = body[2:]
@@ -168,11 +172,11 @@ reactor.listenTCP(8008, site)
 # Nevow / Athena
 
 from twisted.python.util import sibpath
-from nevow import athena, loaders, tags as T
+from nevow import rend, athena, loaders, tags as T
 from nevow.athena import LivePage, LiveElement, expose
 from nevow.loaders import xmlfile
 
-lectores = {}
+lectores = set()
 
 class TempElement(LiveElement):
 
@@ -183,10 +187,16 @@ class TempElement(LiveElement):
         #self.callRemote('addText', message)
         print "Se apreto el boton read"
         factory.clients[0].ask_read(1)
-        lectores[hash(self)] = self
+        lectores.add(self)
     read = expose(read)
 
-class MyPage(LivePage):
+    def change(self, val):
+        print "Se apreto el bonton change"
+        factory.clients[0].ask_write_reg(1, 1, int(val))
+    change = expose(change)
+
+    
+class TerPage(LivePage):
     docFactory = loaders.stan(T.html[
         T.head(render=T.directive('liveglue')),
         T.body(render=T.directive('myElement'))])
@@ -196,7 +206,6 @@ class MyPage(LivePage):
         d.addErrback(self.disconn)
 
     def disconn(self, reason):
-        print "DISCOOOOOOOOOOO"
         del lectores[hash(self.element)]
 
     def render_myElement(self, ctx, data):
@@ -205,10 +214,69 @@ class MyPage(LivePage):
         return ctx.tag[self.element]
 
     def child_(self, ctx):
-        return MyPage()
-        
+        return TerPage()
+
+graficos = set()
+class GraphElement(LiveElement):
+
+    docFactory = xmlfile(sibpath(__file__, 'graph.html'))
+    jsClass = u'GraphDisplay.GraphWidget'
+
+    def start(self):
+        print "Se apreto el bonton start"
+        graficos.add(self)
+    start = expose(start)
+    
+class GraphPage(LivePage):
+    docFactory = loaders.stan(T.html[
+        T.head(render=T.directive('liveglue')),
+        T.body(render=T.directive('myElement'))])
+
+    def beforeRender(self, ctx):
+        d = self.notifyOnDisconnect()
+        d.addErrback(self.disconn)
+
+    def disconn(self, reason):
+        del lectores[hash(self.element)]
+
+    def render_myElement(self, ctx, data):
+        self.element = GraphElement()
+        self.element.setFragmentParent(self)
+        return ctx.tag[self.element]
+
+    def child_(self, ctx):
+        return GraphPage()
+
+class IndexPage(rend.Page):
+
+    def __init__ ( self, *args, **kwargs ):
+        rend.Page.__init__ ( self, *args, **kwargs )
+        self.ter = TerPage()
+        self.graph = GraphPage()
+
+
+    docFactory = loaders.stan (
+        T.html [ T.head ( title = 'Indice' ),
+                 T.body [ T.h1 [ "Pagina principal" ],
+                          T.p [ "Ir a ",
+                                T.a ( href = 'ter' ) [ "TER" ],
+                                " or ",
+                                T.a ( href = 'grapf' ) [ "graph" ],
+                                ],
+                          ]
+                 ]
+        )
+
+
+    def child_ter(self, ctx):
+        return self.ter
+
+    def child_graph(self, ctx):
+        return self.graph
+    
 from nevow import appserver
-site = appserver.NevowSite(MyPage())
+#site = appserver.NevowSite(TerPage())
+site = appserver.NevowSite(IndexPage())
 reactor.listenTCP(8009, site)
 
 # DB Pool
