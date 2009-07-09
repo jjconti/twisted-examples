@@ -251,9 +251,6 @@ class IndexPage(rend.Page):
 
     def __init__ ( self, *args, **kwargs ):
         rend.Page.__init__ ( self, *args, **kwargs )
-        self.ter = TerPage()
-        self.graph = GraphPage()
-
 
     docFactory = loaders.stan (
         T.html [ T.head ( title = 'Indice' ),
@@ -267,12 +264,11 @@ class IndexPage(rend.Page):
                  ]
         )
 
-
     def child_ter(self, ctx):
-        return self.ter
+        return TerPage()
 
     def child_graph(self, ctx):
-        return self.graph
+        return GraphPage()
     
 from nevow import appserver
 #site = appserver.NevowSite(TerPage())
