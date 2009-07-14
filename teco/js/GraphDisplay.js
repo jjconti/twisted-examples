@@ -6,25 +6,40 @@
 GraphDisplay.GraphWidget = Nevow.Athena.Widget.subclass('GraphDisplay.GraphWidget');
 
 GraphDisplay.GraphWidget.methods(
+    
     function __init__(self, node) {
         GraphDisplay.GraphWidget.upcall(self, "__init__", node);
         self.plot = $.plot($("[name=placeholder]"),
-               [ [], [] ], { yaxis: { max: 40 }, xaxis: { max: 60 } });
+               [ [], [], [], [] ], { yaxis: { max: 40 },  xaxis: { max: 60 } }); // 4 series
         self.index = 0
     },
+    
     function doStart(self) {
         // ejecuta funcion start en el servidor
         self.callRemote("start");
+
+        var boton = $("[name=boton]");
+        if (boton.attr('value') == "Start"){
+            boton.attr('value', "Stop");
+        } else {
+            boton.attr('value', "Start");
+        }
+
         return false;
     },
     
-    function nuevoValor(self, valor1, valor2) {
+    function nuevoValor(self, data) {
         // llamada por el servidor para actualizar la pantalla
-        serie1 = self.plot.getData()[0];
-        serie2 = self.plot.getData()[1];
-        serie1.data.push([self.index,valor1]);
-        serie2.data.push([self.index,valor2]);        
-        self.plot.setData([serie1, serie2]);
+        var valores = data.split(',');
+        var series = []
+        for (i=0; i <= 3; i++){
+            var serie = self.plot.getData()[i];
+            serie.data.push([self.index,valores[i]]);
+            series.push(serie);
+        }
+        self.plot.setData(series);
+        //self.plot = $.plot($("[name=placeholder]"),
+        //       series, { yaxis: { max: 40 }, });
         //self.plot.setupGrid();
         self.plot.draw();
         self.index++;

@@ -70,21 +70,21 @@ class TModBus(LineOnlyReceiver):
         i2 = body[37:38]
         print ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2
         print "Guardando en bd"
-        dbpool.runQuery('''INSERT INTO valores (sitio, dispositivo, a1, a2, a3, a4,
-                           c1, c2, c3, c4, b1, b2, b3, b4, i1, i2) VALUES (%s, %s,
-                           %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                           (2, 1, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
+        #dbpool.runQuery('''INSERT INTO valores (sitio, dispositivo, a1, a2, a3, a4,
+         #                  c1, c2, c3, c4, b1, b2, b3, b4, i1, i2) VALUES (%s, %s,
+         #                  %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+          #                 (2, 1, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
 
         if lectores:
             #l = lectores.pop(0)
             print len(lectores), "lectores"
-            for l in lectores:
+            for l in lectores.values():
                 l.callRemote('actualizarValores', u','.join([ea1, ea2, ea3, ea4, c1, c2,
                                                              c3, c4, b1, b2, b3, b4, i1, i2]))
         if graficos:
             print len(graficos), "graficos"
-            for g in graficos:
-                g.callRemote("nuevoValor", u""+ea1, u""+ea2)
+            for g in graficos.values():
+                g.callRemote("nuevoValor", u",".join([ea1, ea2, ea3, ea4]))
             
     def process_write_reg(self, body):
         reg = body[2:]
@@ -176,10 +176,10 @@ from nevow import rend, athena, loaders, tags as T
 from nevow.athena import LivePage, LiveElement, expose
 from nevow.loaders import xmlfile
 
-lectores = set()
+lectores = {}
 
 class TempElement(LiveElement):
-
+        
     docFactory = xmlfile(sibpath(__file__, 'ter.html'))
     jsClass = u'TempDisplay.TempWidget'
 
@@ -187,7 +187,7 @@ class TempElement(LiveElement):
         #self.callRemote('addText', message)
         print "Se apreto el boton read"
         factory.clients[0].ask_read(1)
-        lectores.add(self)
+        lectores[id(self)] = self
     read = expose(read)
 
     def change(self, val):
@@ -206,7 +206,7 @@ class TerPage(LivePage):
         d.addErrback(self.disconn)
 
     def disconn(self, reason):
-        del lectores[hash(self.element)]
+        del lectores[id(self.element)]
 
     def render_myElement(self, ctx, data):
         self.element = TempElement()
@@ -216,7 +216,8 @@ class TerPage(LivePage):
     def child_(self, ctx):
         return TerPage()
 
-graficos = set()
+graficos = {}
+
 class GraphElement(LiveElement):
 
     docFactory = xmlfile(sibpath(__file__, 'graph.html'))
@@ -224,7 +225,10 @@ class GraphElement(LiveElement):
 
     def start(self):
         print "Se apreto el bonton start"
-        graficos.add(self)
+        if id(self) in graficos.keys():
+            del graficos[id(self)]
+        else:
+            graficos[id(self)] = self
     start = expose(start)
     
 class GraphPage(LivePage):
@@ -237,7 +241,7 @@ class GraphPage(LivePage):
         d.addErrback(self.disconn)
 
     def disconn(self, reason):
-        del lectores[hash(self.element)]
+        del graficos[id(self.element)]
 
     def render_myElement(self, ctx, data):
         self.element = GraphElement()
@@ -258,7 +262,7 @@ class IndexPage(rend.Page):
                           T.p [ "Ir a ",
                                 T.a ( href = 'ter' ) [ "TER" ],
                                 " or ",
-                                T.a ( href = 'grapf' ) [ "graph" ],
+                                T.a ( href = 'graph' ) [ "graph" ],
                                 ],
                           ]
                  ]
