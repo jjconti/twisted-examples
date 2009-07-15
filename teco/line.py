@@ -84,7 +84,7 @@ class TModBus(LineOnlyReceiver):
         if graficos:
             print len(graficos), "graficos"
             for g in graficos.values():
-                g.callRemote("nuevoValor", u",".join([ea1, ea2, ea3, ea4]))
+                g.callRemote("nuevoValor", u",".join([ea1, ea2, ea3, ea4, c1, c2, c3, c4]))
             
     def process_write_reg(self, body):
         reg = body[2:]
@@ -120,7 +120,7 @@ class TModBusFactory(Factory):
         self.clients = []
         self.lc = LoopingCall(self.paso)
         #self.lc.start(60)
-        self.lc.start(5)        
+        self.lc.start(2)        
 
 factory = TModBusFactory()
 reactor.listenTCP(8007, factory)

@@ -15,7 +15,7 @@ class CModBus(LineOnlyReceiver):
     
     def lineReceived(self, line):
         print line
-        self.sendLine(':0142' + self.factory.nuevoEstado() + '30.030.030.030.0111100')
+        self.sendLine(':0142' + self.factory.nuevoEstado() + '40.030.020.010.0111100')
         
     def sendLine(self, line):
         print 'S: ' + line
@@ -36,7 +36,7 @@ class CModBusFactory(ClientFactory):
         self.ea4_d = 0 
         
     def nuevoEstado(self):
-        r = "%.1f%.1f%.1f%.1f" % (self.ea1, self.ea2, self.ea3, self.ea4)
+        r = "%04.1f%04.1f%04.1f%04.1f" % (self.ea1, self.ea2, self.ea3, self.ea4)
         self.ea1 += self.ea1_d
         self.ea2 += self.ea2_d
         self.ea3 += self.ea3_d
