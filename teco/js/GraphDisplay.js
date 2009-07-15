@@ -68,7 +68,7 @@ GraphDisplay.GraphWidget.methods(
             s.data = self.datasets[s.label].data;
         });
         self.plot.setData(series);
-        self.plot.draw();    
+        self.plot.draw();
     },
 
     function doStart(self) {
@@ -94,6 +94,13 @@ GraphDisplay.GraphWidget.methods(
         });
         self.doPlot();
         self.tick++;
+        if (self.tick > 60){
+            self.tick = 0;
+            $.each(self.datasets, function(k, v){
+                v.data = [[self.tick,valores[i]]];
+                i++;
+            });
+        }        
     }
 );
 
