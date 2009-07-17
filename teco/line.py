@@ -190,9 +190,16 @@ class TempElement(LiveElement):
         lectores[id(self)] = self
     read = expose(read)
 
-    def change(self, val):
+    def change(self, consigna, val):
         print "Se apreto el bonton change"
-        factory.clients[0].ask_write_reg(1, 1, int(val))
+        if consigna not in ['1', '2', '3', '4'] or len(val) > 2:   # una validacion
+            return
+        try:
+            consigna = int(consigna)
+            val = int(val)
+        except:
+            return
+        factory.clients[0].ask_write_reg(1, consigna, val)
     change = expose(change)
 
     
@@ -251,6 +258,32 @@ class GraphPage(LivePage):
     def child_(self, ctx):
         return GraphPage()
 
+class TodoPage(LivePage):
+    docFactory = loaders.stan(T.html[
+        T.head(render=T.directive('liveglue')),
+        #T.body(render=T.directive('myElement'))])
+        T.body[T.div(render=T.directive('myElement1')), T.div(render=T.directive('myElement2'))]])
+
+    def beforeRender(self, ctx):
+        d = self.notifyOnDisconnect()
+        d.addErrback(self.disconn)
+
+    def disconn(self, reason):
+        del graficos[id(self.element)]
+
+    def render_myElement1(self, ctx, data):
+        self.element1 = TempElement()
+        self.element1.setFragmentParent(self)
+        return ctx.tag[self.element1]
+        
+    def render_myElement2(self, ctx, data):
+        self.element2 = GraphElement()
+        self.element2.setFragmentParent(self)
+        return ctx.tag[self.element2]
+
+    def child_(self, ctx):
+        return TodoPage()
+
 class IndexPage(rend.Page):
 
     def __init__ ( self, *args, **kwargs ):
@@ -263,6 +296,8 @@ class IndexPage(rend.Page):
                                 T.a ( href = 'ter' ) [ "TER" ],
                                 " or ",
                                 T.a ( href = 'graph' ) [ "graph" ],
+                                " or ",
+                                T.a ( href = 'todo' ) [ "todo" ],                                
                                 ],
                           ]
                  ]
@@ -273,7 +308,10 @@ class IndexPage(rend.Page):
 
     def child_graph(self, ctx):
         return GraphPage()
-    
+
+    def child_todo(self, ctx):
+        return TodoPage()
+            
 from nevow import appserver
 #site = appserver.NevowSite(TerPage())
 site = appserver.NevowSite(IndexPage())

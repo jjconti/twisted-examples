@@ -1,4 +1,5 @@
 // import Nevow.Athena
+// import jquery
 
 TempDisplay.TempWidget = Nevow.Athena.Widget.subclass('TempDisplay.TempWidget');
 
@@ -23,12 +24,6 @@ TempDisplay.TempWidget.methods(
         self.todoTxt = document.createTextNode('');
         self.todo = self.nodeByAttribute('name', 'todo');
         self.todo.appendChild(self.todoTxt);
-
-        // Umbrales
-
-        self.u1 = self.nodeByAttribute('name', 'u1');
-        self.u2 = self.nodeByAttribute('name', 'u2');
-        self.u3 = self.nodeByAttribute('name', 'u3');
     },
 
     function doRead(self) {
@@ -39,7 +34,9 @@ TempDisplay.TempWidget.methods(
 
     function doChange(self) {
         // ejecuta funcion change en el servidor
-        self.callRemote("change", self.u1.value);
+        var cual = $("input[name='consignas']:checked").val();
+        var cuanto = $("[name='valor_consigna']").val();
+        self.callRemote("change", cual, cuanto);
         return false;
     },
     

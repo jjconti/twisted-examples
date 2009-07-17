@@ -5,6 +5,7 @@ from twisted.internet import reactor
 from sys import stdout
 #from twisted.python import log
 #log.startLogging(stdout)
+import random
     
 def gotProtocol(p):
     p.sendLine(":123456789")    # saludo inicial
@@ -43,21 +44,21 @@ class CModBusFactory(ClientFactory):
         self.ea4 += self.ea4_d                        
         # some random lies
         if self.ea1 > 30:
-            self.ea1_d = -0.2
-        if self.ea1 < 10:
-            self.ea1_d = 0.3
+            self.ea1_d = -0.2 * random.choice([0,1,1])
+        if self.ea1 < 12:
+            self.ea1_d = 0.3 * random.choice([0,0,1])
         if self.ea2 > 20:
-            self.ea2_d = -0.1
+            self.ea2_d = -0.1 * random.choice([0,1,1])
         if self.ea2 < 10:
-            self.ea2_d = 0.2
+            self.ea2_d = 0.2 * random.choice([0,1,0])
         if self.ea3 > 30:
-            self.ea3_d = -0.2
-        if self.ea3 < 10:
-            self.ea3_d = 0.3
+            self.ea3_d = -0.2 * random.choice([0,0,1])
+        if self.ea3 < 12:
+            self.ea3_d = 0.3 * random.choice([0,1,1,0,0,0])
         if self.ea4 > 20:
-            self.ea4_d = -0.1
+            self.ea4_d = -0.1 * random.choice([0,1,0,0])
         if self.ea4 < 10:
-            self.ea4_d = 0.2
+            self.ea4_d = 0.2 * random.choice([0,1,0])
                     
         return r
                                                   

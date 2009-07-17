@@ -11,18 +11,18 @@
     <span>Temperatura de sala</span><span name="temp_sala"></span><br/>
     <span>Temperatura de retorno</span><span name="temp_retorno"></span><br/>
     <span>Temperatura exterior (free cooling)</span><span name="temp_exterior"></span><br/>
-    <br/><br/>
-    <span>TODO</span><span name="todo"></span><br/>
+    <br/>
+    <span>Valores recibidos: </span><span name="todo"></span><br/>
+    <br/>
     </div>
 
     <form name="terElementChange">
         <athena:handler event="onsubmit" handler="doChange" />
+        <input type="radio" name="consignas" value="1" checked="checked" />c1
+        <input type="radio" name="consignas" value="2" />c2
+        <input type="radio" name="consignas" value="3" />c3
+        <input type="radio" name="consignas" value="4" />c4                        
+        <input type="text" name="valor_consigna" size="2" />
         <input type="submit" value="Change" />
     </form>
-    <div name="umbrales">
-    <input type="text" name="u1" size="2" />
-    <input type="text" name="u2" size="2" />
-    <input type="text" name="u3" size="2" />
-    </div>
-    
 </div>

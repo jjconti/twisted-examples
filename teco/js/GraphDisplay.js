@@ -14,7 +14,7 @@ GraphDisplay.GraphWidget.methods(
          
          var options = { legend: { noColumns: 2 }, 
                                   yaxis: { max: 40, min: 10 },  
-                                  xaxis: { max: 60, min: 0 }}
+                                  xaxis: { max: 260, min: 0 }}
         self.options = options;
          
          var datasets = {
@@ -94,7 +94,7 @@ GraphDisplay.GraphWidget.methods(
         });
         self.doPlot();
         self.tick++;
-        if (self.tick > 60){
+        if (self.tick > 260){
             self.tick = 0;
             $.each(self.datasets, function(k, v){
                 v.data = [[self.tick,valores[i]]];
