@@ -29,6 +29,14 @@ TempDisplay.TempWidget.methods(
     function doRead(self) {
         // ejecuta funcion read en el servidor
         self.callRemote("read");
+
+        var boton = $("[name=botonLeer]");
+        if (boton.attr('value') == "Leer"){
+            boton.attr('value', "Detener");
+        } else {
+            boton.attr('value', "Leer");
+        }
+                
         return false;
     },
 

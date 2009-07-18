@@ -186,8 +186,10 @@ class TempElement(LiveElement):
     def read(self):
         #self.callRemote('addText', message)
         print "Se apreto el boton read"
-        factory.clients[0].ask_read(1)
-        lectores[id(self)] = self
+        if id(self) in lectores.keys():
+            del lectores[id(self)]
+        else:
+            lectores[id(self)] = self
     read = expose(read)
 
     def change(self, consigna, val):
@@ -213,7 +215,8 @@ class TerPage(LivePage):
         d.addErrback(self.disconn)
 
     def disconn(self, reason):
-        del lectores[id(self.element)]
+        if id(self.element) in lectores.keys():
+            del lectores[id(self.element)]
 
     def render_myElement(self, ctx, data):
         self.element = TempElement()
@@ -248,7 +251,8 @@ class GraphPage(LivePage):
         d.addErrback(self.disconn)
 
     def disconn(self, reason):
-        del graficos[id(self.element)]
+        if id(self.element) in graficos.keys():
+            del graficos[id(self.element)]
 
     def render_myElement(self, ctx, data):
         self.element = GraphElement()
@@ -269,7 +273,11 @@ class TodoPage(LivePage):
         d.addErrback(self.disconn)
 
     def disconn(self, reason):
-        del graficos[id(self.element)]
+        if id(self.element1) in lectores.keys():
+            del lectores[id(self.element1)]    
+            
+        if id(self.element2) in graficos.keys():
+            del graficos[id(self.element2)]
 
     def render_myElement1(self, ctx, data):
         self.element1 = TempElement()

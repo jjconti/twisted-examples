@@ -75,11 +75,11 @@ GraphDisplay.GraphWidget.methods(
         // ejecuta funcion start en el servidor
         self.callRemote("start");
 
-        var boton = $("[name=boton]");
-        if (boton.attr('value') == "Start"){
-            boton.attr('value', "Stop");
+        var boton = $("[name=botonGraficar]");
+        if (boton.attr('value') == "Graficar"){
+            boton.attr('value', "Detener");
         } else {
-            boton.attr('value', "Start");
+            boton.attr('value', "Graficar");
         }
 
         return false;
