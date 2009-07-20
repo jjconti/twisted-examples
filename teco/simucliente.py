@@ -16,8 +16,21 @@ class CModBus(LineOnlyReceiver):
     
     def lineReceived(self, line):
         print line
-        self.sendLine(':0142' + self.factory.nuevoEstado() + '40.030.020.010.0111100')
-        
+        if line.startswith(':0142'):
+            self.sendLine(':0142' + self.factory.nuevoEstado() + '111100')
+        elif line.startswith(':0143'):
+            c = line[5:7]
+            valor = int(line[7:9])
+            if c == '01':
+                self.factory.c1 = valor
+            elif c == '02':
+                self.factory.c2 = valor
+            elif c == '03':
+                self.factory.c3 = valor
+            elif c == '04':
+                self.factory.c4 = valor
+            self.sendLine(line)
+            
     def sendLine(self, line):
         print 'S: ' + line
         LineOnlyReceiver.sendLine(self, line)        
@@ -35,9 +48,14 @@ class CModBusFactory(ClientFactory):
         self.ea3_d = -0.2
         self.ea4 = 30.0
         self.ea4_d = 0 
+        self.c1 = 12
+        self.c2 = 23
+        self.c3 = 33
+        self.c4 = 36
         
     def nuevoEstado(self):
-        r = "%04.1f%04.1f%04.1f%04.1f" % (self.ea1, self.ea2, self.ea3, self.ea4)
+        r = "%04.1f"*8 % (self.ea1, self.ea2, self.ea3, self.ea4,
+                          self.c1, self.c2, self.c3, self.c4)
         self.ea1 += self.ea1_d
         self.ea2 += self.ea2_d
         self.ea3 += self.ea3_d
