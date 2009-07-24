@@ -6,14 +6,15 @@ from sys import stdout
 #from twisted.python import log
 #log.startLogging(stdout)
 import random
-    
-def gotProtocol(p):
-    p.sendLine(":123456789")    # saludo inicial
-    #reactor.callLater(1, p.sendLine, ":909090909090")
-    #reactor.callLater(2, p.transport.loseConnection)
 
 class CModBus(LineOnlyReceiver):
-    
+
+    def connectionMade(self):
+        # Saludo inicial
+        sitio = raw_input("Ingresar CDL (3 letras): ")
+        sitio = (sitio + 'ZZZ')[:3].upper()
+        self.sendLine(":91" + sitio + "00")
+        
     def lineReceived(self, line):
         print line
         if line.startswith(':0142'):
