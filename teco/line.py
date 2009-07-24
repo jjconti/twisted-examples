@@ -12,7 +12,9 @@ from constants import *
 #log.startLogging(stdout)
 
 from twisted.internet.task import LoopingCall
-        
+
+sitios = {} # puede ser un atributo de Factory
+
 class TModBus(LineOnlyReceiver):
 
     def lineReceived(self, line):
@@ -25,7 +27,9 @@ class TModBus(LineOnlyReceiver):
         print "Total: %d" % (len(self.factory.clients),)
     
     def connectionLost(self, reason):
-        self.factory.clients.remove(self)
+        if self in self.factory.clients:
+            self.factory.clients.remove(self)
+        print "El cliente ya fue eliminado."
         #TODO: do something with reason
         
     def process(self, line):    #FIXME: esta funcion debe detectar errores
@@ -34,6 +38,19 @@ class TModBus(LineOnlyReceiver):
         #print "R: %s:%d %s" % (self.peer.host, self.peer.port, line)  #LOG
         if not line.startswith(':'):
             print "Error en mensaje: no empieza con :"  #EXC
+        elif line[3] == '9':   # mensaje del G24 - Saludo inicial
+            print "G24 dice: ", line
+            sitio = line[5:8]
+            print "SITIO", sitio
+            if sitio in sitios:
+                print "%s ya estaba conectado. Borrando anterior." % sitio
+                self.factory.clients.remove(sitios[sitio])
+                sitios[sitio].transport.loseConnection()
+            sitios[sitio] = self    #ver como liberamos el recurso aca
+        elif line[3] == '6':
+            print "G24 dice: ", line
+            sitio = line[5:8]
+            print "SITIO", sitio
         else:
             disp = int(line[1:3])   #EXC
             func = int(line[3:5])   #EXC
@@ -70,13 +87,12 @@ class TModBus(LineOnlyReceiver):
         i2 = body[37:38]
         print ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2
         print "Guardando en bd"
-        #dbpool.runQuery('''INSERT INTO valores (sitio, dispositivo, a1, a2, a3, a4,
-         #                  c1, c2, c3, c4, b1, b2, b3, b4, i1, i2) VALUES (%s, %s,
-         #                  %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-          #                 (2, 1, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
+        dbpool.runQuery('''INSERT INTO valores (sitio, dispositivo, a1, a2, a3, a4,
+                           c1, c2, c3, c4, b1, b2, b3, b4, i1, i2) VALUES (%s, %s,
+                           %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+                          (2, 1, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
 
         if lectores:
-            #l = lectores.pop(0)
             print len(lectores), "lectores"
             for l in lectores.values():
                 l.callRemote('actualizarValores', u','.join([ea1, ea2, ea3, ea4, c1, c2,
@@ -120,7 +136,7 @@ class TModBusFactory(Factory):
         self.clients = []
         self.lc = LoopingCall(self.paso)
         #self.lc.start(60)
-        self.lc.start(2)        
+        self.lc.start(20)        
 
 factory = TModBusFactory()
 reactor.listenTCP(8007, factory)
@@ -172,7 +188,8 @@ reactor.listenTCP(8008, site)
 # Nevow / Athena
 
 from twisted.python.util import sibpath
-from nevow import rend, athena, loaders, tags as T
+from nevow import flat, rend, athena, loaders, tags as T
+from nevow import inevow
 from nevow.athena import LivePage, LiveElement, expose
 from nevow.loaders import xmlfile
 
@@ -255,6 +272,8 @@ class GraphPage(LivePage):
             del graficos[id(self.element)]
 
     def render_myElement(self, ctx, data):
+        request = inevow.IRequest(ctx)
+        print request.prepath
         self.element = GraphElement()
         self.element.setFragmentParent(self)
         return ctx.tag[self.element]
@@ -265,7 +284,6 @@ class GraphPage(LivePage):
 class TodoPage(LivePage):
     docFactory = loaders.stan(T.html[
         T.head(render=T.directive('liveglue')),
-        #T.body(render=T.directive('myElement'))])
         T.body[T.div(render=T.directive('myElement1')), T.div(render=T.directive('myElement2'))]])
 
     def beforeRender(self, ctx):
@@ -297,19 +315,30 @@ class IndexPage(rend.Page):
     def __init__ ( self, *args, **kwargs ):
         rend.Page.__init__ ( self, *args, **kwargs )
 
-    docFactory = loaders.stan (
-        T.html [ T.head ( title = 'Indice' ),
-                 T.body [ T.h1 [ "Pagina principal" ],
-                          T.p [ "Ir a ",
-                                T.a ( href = 'ter' ) [ "TER" ],
-                                " or ",
-                                T.a ( href = 'graph' ) [ "graph" ],
-                                " or ",
-                                T.a ( href = 'todo' ) [ "todo" ],                                
-                                ],
-                          ]
-                 ]
-        )
+    def renderHTTP(self, ctx):
+        def renglon(c):
+            r = T.p [ " %s " % c,
+                T.a ( href = 'ter/' + c ) [ "TER" ],
+                " - ",
+                T.a ( href = 'graph/' + c ) [ "graph" ],
+                " - ",
+                T.a ( href = 'todo/' + c ) [ "todo" ],                                
+                ]
+            return r
+        
+        renglones = [renglon(k) for k in sitios]
+        s = loaders.stan (
+            T.html [ T.head ( title = 'Indice' ),
+                     T.body [ T.h1 [ "Pagina principal" ],
+                              T.div [
+                                #renglones
+                                  renglon('')
+                              
+                              ]
+                     ]
+            ]
+            )
+        return flat.flatten(s)
 
     def child_ter(self, ctx):
         return TerPage()
@@ -324,6 +353,7 @@ from nevow import appserver
 #site = appserver.NevowSite(TerPage())
 site = appserver.NevowSite(IndexPage())
 reactor.listenTCP(8009, site)
+reactor.listenTCP(8080, site)
 
 # DB Pool
 dbpool = adbapi.ConnectionPool('MySQLdb', db='kimera_kimera', user='kimera_kimera', passwd='kimera_kimera')
