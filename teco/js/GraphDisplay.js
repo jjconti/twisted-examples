@@ -13,7 +13,7 @@ GraphDisplay.GraphWidget.methods(
          self.tick = 0;
          
          var options = { legend: { noColumns: 2 }, 
-                                  yaxis: { max: 40, min: 10 },  
+                                  yaxis: { max: 40, min: 10, label: "Aa" },  
                                   xaxis: { max: 260, min: 0 }}
         self.options = options;
          

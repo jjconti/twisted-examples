@@ -13,7 +13,6 @@ from constants import *
 
 from twisted.internet.task import LoopingCall
 
-sitios = {} # puede ser un atributo de Factory
 
 class TModBus(LineOnlyReceiver):
 
@@ -21,15 +20,17 @@ class TModBus(LineOnlyReceiver):
         self.process(line)
         
     def connectionMade(self):
-        self.factory.clients.append(self)
+        #self.factory.clients.append(self)
+        self.factory.clients[id(self)] = {'self': self, 'sitio': ''}
         self.peer = self.transport.getPeer()
         print "Nuevo cliente: %s:%d" % (self.peer.host, self.peer.port) #LOG
         print "Total: %d" % (len(self.factory.clients),)
     
     def connectionLost(self, reason):
-        if self in self.factory.clients:
-            self.factory.clients.remove(self)
-        print "El cliente ya fue eliminado."
+        if id(self) in self.factory.clients:
+            del self.factory.clients[id(self)]
+        else:
+            print "El cliente ya fue eliminado."
         #TODO: do something with reason
         
     def process(self, line):    #FIXME: esta funcion debe detectar errores
@@ -42,11 +43,15 @@ class TModBus(LineOnlyReceiver):
             print "G24 dice: ", line
             sitio = line[5:8]
             print "SITIO", sitio
-            if sitio in sitios:
-                print "%s ya estaba conectado. Borrando anterior." % sitio
-                self.factory.clients.remove(sitios[sitio])
-                sitios[sitio].transport.loseConnection()
-            sitios[sitio] = self    #ver como liberamos el recurso aca
+            # verificar si ya hay un g24 registrado para ese sitio
+            for k,v in self.factory.clients.items():
+                if sitio == v['sitio']:
+                    print "%s ya estaba conectado. Borrando anterior." % sitio
+                    self.factory.clients[k]['self'].transport.loseConnection()
+                    del self.factory.clients[k] #move(sitios[sitio])
+                    break
+            self.factory.clients[id(self)]['sitio'] = sitio
+            #sitios[sitio] = self    #ver como liberamos el recurso aca
         elif line[3] == '6':
             print "G24 dice: ", line
             sitio = line[5:8]
@@ -92,14 +97,16 @@ class TModBus(LineOnlyReceiver):
                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
                           (2, 1, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
 
-        if lectores:
-            print len(lectores), "lectores"
-            for l in lectores.values():
+        sitio = factory.clients[id(self)]['sitio']
+        
+        if lectores.get(sitio):
+            print len(lectores[sitio]), "lectores"
+            for l in lectores[sitio].values():
                 l.callRemote('actualizarValores', u','.join([ea1, ea2, ea3, ea4, c1, c2,
                                                              c3, c4, b1, b2, b3, b4, i1, i2]))
-        if graficos:
-            print len(graficos), "graficos"
-            for g in graficos.values():
+        if graficos.get(sitio):
+            print len(graficos[sitio]), "graficos"
+            for g in graficos[sitio].values():
                 g.callRemote("nuevoValor", u",".join([ea1, ea2, ea3, ea4, c1, c2, c3, c4]))
             
     def process_write_reg(self, body):
@@ -126,17 +133,18 @@ class TModBusFactory(Factory):
     
     def paso(self):
         print "Clientes actualmente conectados: ", len(self.clients)
-        for c in self.clients:
-            c.ask_read(1)
+        for c in self.clients.values():
+            c['self'].ask_read(1)
 
     def stopFactory(self):
         self.lc.stop()    
        
     def __init__(self):
-        self.clients = []
+        #self.clients = []
+        self.clients = {}
         self.lc = LoopingCall(self.paso)
         #self.lc.start(60)
-        self.lc.start(20)        
+        self.lc.start(5)        
 
 factory = TModBusFactory()
 reactor.listenTCP(8007, factory)
@@ -200,13 +208,21 @@ class TempElement(LiveElement):
     docFactory = xmlfile(sibpath(__file__, 'ter.html'))
     jsClass = u'TempDisplay.TempWidget'
 
+    def __init__(self, sitio=''):
+        self.sitio = sitio
+        self.client = [c for c in factory.clients.values() if c['sitio'] == sitio][0]['self']
+        super(TempElement, self).__init__()
+
     def read(self):
-        #self.callRemote('addText', message)
         print "Se apreto el boton read"
-        if id(self) in lectores.keys():
-            del lectores[id(self)]
+        # TODO: verificar que sea un sitio valido
+        if lectores.get(self.sitio):
+            if id(self) in lectores[self.sitio].keys():
+                del lectores[self.sitio][id(self)]
+            else:
+                lectores[self.sitio][id(self)] = self
         else:
-            lectores[id(self)] = self
+            lectores[self.sitio] = {id(self): self}
     read = expose(read)
 
     def change(self, consigna, val):
@@ -218,7 +234,7 @@ class TempElement(LiveElement):
             val = int(val)
         except:
             return
-        factory.clients[0].ask_write_reg(1, consigna, val)
+        self.client.ask_write_reg(1, consigna, val)
     change = expose(change)
 
     
@@ -227,21 +243,26 @@ class TerPage(LivePage):
         T.head(render=T.directive('liveglue')),
         T.body(render=T.directive('myElement'))])
 
+    def __init__(self, sitio='', *args, **kwargs):
+        self.sitio = sitio
+        LivePage.__init__ (self, *args, **kwargs)
+        
     def beforeRender(self, ctx):
         d = self.notifyOnDisconnect()
         d.addErrback(self.disconn)
 
     def disconn(self, reason):
-        if id(self.element) in lectores.keys():
-            del lectores[id(self.element)]
+        if lectores.get(self.sitio):
+            if id(self.element) in lectores[self.sitio].keys():
+                del lectores[id(self.element)]
 
     def render_myElement(self, ctx, data):
-        self.element = TempElement()
+        self.element = TempElement(self.sitio)
         self.element.setFragmentParent(self)
         return ctx.tag[self.element]
 
-    def child_(self, ctx):
-        return TerPage()
+    def childFactory(self, ctx, name):
+        return TerPage(name)
 
 graficos = {}
 
@@ -250,65 +271,86 @@ class GraphElement(LiveElement):
     docFactory = xmlfile(sibpath(__file__, 'graph.html'))
     jsClass = u'GraphDisplay.GraphWidget'
 
+    def __init__(self, sitio=''):
+        self.sitio = sitio
+        super(GraphElement, self).__init__()
+        
     def start(self):
         print "Se apreto el bonton start"
-        if id(self) in graficos.keys():
-            del graficos[id(self)]
+        # TODO: verificar que sea un sitio valido
+        if graficos.get(self.sitio):
+            if id(self) in graficos[self.sitio].keys():
+                del graficos[self.sitio][id(self)]
+            else:
+                graficos[self.sitio][id(self)] = self
         else:
-            graficos[id(self)] = self
+            graficos[self.sitio] = {id(self): self}
     start = expose(start)
     
 class GraphPage(LivePage):
     docFactory = loaders.stan(T.html[
         T.head(render=T.directive('liveglue')),
         T.body(render=T.directive('myElement'))])
-
+    
+    def __init__(self, sitio='', *args, **kwargs):
+        self.sitio = sitio
+        LivePage.__init__ (self, *args, **kwargs)
+        
     def beforeRender(self, ctx):
         d = self.notifyOnDisconnect()
         d.addErrback(self.disconn)
 
     def disconn(self, reason):
-        if id(self.element) in graficos.keys():
-            del graficos[id(self.element)]
+        if graficos.get(self.sitio):
+            if id(self.element) in graficos[self.sitio].keys():
+                del graficos[id(self.element)]
 
     def render_myElement(self, ctx, data):
         request = inevow.IRequest(ctx)
         print request.prepath
-        self.element = GraphElement()
+        self.element = GraphElement(self.sitio)
         self.element.setFragmentParent(self)
         return ctx.tag[self.element]
 
-    def child_(self, ctx):
-        return GraphPage()
+    def childFactory(self, ctx, name):
+        return GraphPage(name)
 
 class TodoPage(LivePage):
     docFactory = loaders.stan(T.html[
         T.head(render=T.directive('liveglue')),
-        T.body[T.div(render=T.directive('myElement1')), T.div(render=T.directive('myElement2'))]])
+        T.body[T.div(render=T.directive('myElement1')),
+               T.div(render=T.directive('myElement2'))]])
 
+    def __init__(self, sitio='', *args, **kwargs):
+        self.sitio = sitio
+        LivePage.__init__ (self, *args, **kwargs)
+        
     def beforeRender(self, ctx):
         d = self.notifyOnDisconnect()
         d.addErrback(self.disconn)
 
     def disconn(self, reason):
-        if id(self.element1) in lectores.keys():
-            del lectores[id(self.element1)]    
+        
+        if lectores.get(self.sitio):
+            if id(self.element1) in lectores[self.sitio].keys():
+                del lectores[id(self.element1)]
             
-        if id(self.element2) in graficos.keys():
-            del graficos[id(self.element2)]
+        if graficos.get(self.sitio):
+            if id(self.element2) in graficos[self.sitio].keys():
+                del graficos[id(self.element2)]
 
     def render_myElement1(self, ctx, data):
-        self.element1 = TempElement()
+        self.element1 = TempElement(self.sitio)
         self.element1.setFragmentParent(self)
         return ctx.tag[self.element1]
         
     def render_myElement2(self, ctx, data):
-        self.element2 = GraphElement()
+        self.element2 = GraphElement(self.sitio)
         self.element2.setFragmentParent(self)
         return ctx.tag[self.element2]
 
-    def child_(self, ctx):
-        return TodoPage()
+    def childFactory(self, ctx, name):
+        return TodoPage(name)
 
 class IndexPage(rend.Page):
 
@@ -317,29 +359,29 @@ class IndexPage(rend.Page):
 
     def renderHTTP(self, ctx):
         def renglon(c):
-            r = T.p [ " %s " % c,
-                T.a ( href = 'ter/' + c ) [ "TER" ],
+            r = T.h2 [ " %s : " % c['sitio'],
+                T.a ( href = 'ter/%s' % c['sitio'] ) [ "Ter" ],
                 " - ",
-                T.a ( href = 'graph/' + c ) [ "graph" ],
+                T.a ( href = 'graph/%s' % c['sitio'] ) [ "Graph" ],
                 " - ",
-                T.a ( href = 'todo/' + c ) [ "todo" ],                                
+                T.a ( href = 'todo/%s' % c['sitio'] ) [ "Ter + Graph" ],                                
                 ]
             return r
         
-        renglones = [renglon(k) for k in sitios]
+        renglones = [renglon(k) for k in factory.clients.values()]
         s = loaders.stan (
             T.html [ T.head ( title = 'Indice' ),
-                     T.body [ T.h1 [ "Pagina principal" ],
+                     T.body [ T.h1 [ "%d clientes conectados" % len(factory.clients) ],
                               T.div [
-                                #renglones
-                                  renglon('')
+                                renglones
+                                #  renglon('')
                               
                               ]
                      ]
             ]
             )
         return flat.flatten(s)
-
+            
     def child_ter(self, ctx):
         return TerPage()
 
@@ -348,7 +390,13 @@ class IndexPage(rend.Page):
 
     def child_todo(self, ctx):
         return TodoPage()
-            
+
+class SitioPage(rend.Page):
+
+    def __init__ (self, *args, **kwargs):
+        rend.Page.__init__ ( self, *args, **kwargs )
+        
+        
 from nevow import appserver
 #site = appserver.NevowSite(TerPage())
 site = appserver.NevowSite(IndexPage())
