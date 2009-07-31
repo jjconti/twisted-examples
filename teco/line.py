@@ -107,7 +107,8 @@ class TModBus(LineOnlyReceiver):
         if graficos.get(sitio):
             print len(graficos[sitio]), "graficos"
             for g in graficos[sitio].values():
-                g.callRemote("nuevoValor", u",".join([ea1, ea2, ea3, ea4, c1, c2, c3, c4]))
+                g.callRemote("nuevoValor", u",".join([ea1, ea2, ea3, ea4, c1, c2,
+                                                      c3, c4, b1, b2, b3, b4]))
             
     def process_write_reg(self, body):
         reg = body[2:]
@@ -126,7 +127,9 @@ class TModBus(LineOnlyReceiver):
         self.sendLine(':%02d%d%02d' % (disp, RD, LR))
 
     def ask_write_reg(self, disp, reg, val):
-        self.sendLine(':%02d%d%02d%02d%02d' % (disp, WR, reg, val, LR))
+        line = ':%02d%d%02d%02d%02d' % (disp, WR, reg, val, LR)
+        print "Enviando: %s" % line
+        self.sendLine(line)
             
 class TModBusFactory(Factory):
     protocol = TModBus
@@ -374,7 +377,6 @@ class IndexPage(rend.Page):
                      T.body [ T.h1 [ "%d clientes conectados" % len(factory.clients) ],
                               T.div [
                                 renglones
-                                #  renglon('')
                               
                               ]
                      ]
@@ -398,7 +400,6 @@ class SitioPage(rend.Page):
         
         
 from nevow import appserver
-#site = appserver.NevowSite(TerPage())
 site = appserver.NevowSite(IndexPage())
 reactor.listenTCP(8009, site)
 reactor.listenTCP(8080, site)

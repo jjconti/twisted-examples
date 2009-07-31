@@ -13,9 +13,14 @@ GraphDisplay.GraphWidget.methods(
          self.tick = 0;
          
          var options = { legend: { noColumns: 2 }, 
-                                  yaxis: { max: 40, min: 10, label: "Aa" },  
-                                  xaxis: { max: 260, min: 0 }}
-        self.options = options;
+                                  yaxis: { max: 50, min: 0 },  
+                                  xaxis: { max: 275, min: 0 }}
+
+         var options2 = { legend: { noColumns: 2 }, 
+                                  yaxis: {  min: -0.5, max: 7.5 },  
+                                  xaxis: {  min: 0, max: 275}}
+         self.options = options;
+         self.options2 = options2;        
          
          var datasets = {
                                     "ea1" : { label: "ea1",  data: []},
@@ -27,13 +32,24 @@ GraphDisplay.GraphWidget.methods(
                                     "c3" : { label: "c3",  data: []},
                                     "c4" : { label: "c4",  data: []},                                    
                                   }
+         var datasets2 = {
+                                    "r1" : { label: "r1",  data: [], 0: 0, 1: 1},
+                                    "r2" : { label: "r2",  data: [], 0: 2, 1: 3},
+                                    "r3" : { label: "r3",  data: [], 0: 4, 1: 5},
+                                    "r4" : { label: "r4",  data: [], 0: 6, 1: 7},                                    
+                                  }
         self.datasets = datasets
+        self.datasets2 = datasets2
         // hard-code color indices to prevent them from shifting
         var i = 0;
         $.each(datasets, function(key, val) {
             val.color = i;
             i++;
          });
+        $.each(datasets2, function(key, val) {
+            val.color = i;
+            i++;
+         });        
         // insert checkboxes 
         var choiceContainer = $("[name=choices]");
         self.choiceContainer = choiceContainer;
@@ -59,7 +75,13 @@ GraphDisplay.GraphWidget.methods(
         $.each(datasets, function(key, val){
             data.push(val);
         });
+        var data2 = []
+        $.each(datasets2, function(key, val){
+            data2.push(val);
+        });
+        // Crear grafico
         self.plot = $.plot($("[name=placeholder]"), data, options);
+        self.plot2 = $.plot($("[name=placeholder2]"), data2, options2);
     },
 
     function doPlot(self) {
@@ -69,6 +91,13 @@ GraphDisplay.GraphWidget.methods(
         });
         self.plot.setData(series);
         self.plot.draw();
+        var series2 = self.plot2.getData();
+        $.each(series2, function(i, s){
+            s.data = self.datasets2[s.label].data;
+        });
+        self.plot2.setData(series2);
+        self.plot2.draw();
+
     },
 
     function doStart(self) {
@@ -92,14 +121,22 @@ GraphDisplay.GraphWidget.methods(
             v.data.push([self.tick,valores[i]]);
             i++;
         });
+        $.each(self.datasets2, function(k, v){
+            v.data.push([self.tick, v[valores[i]]]);    // v[0] o v[1]
+            i++;
+        });
         self.doPlot();
         self.tick++;
-        if (self.tick > 260){
+        if (self.tick > 275){
             self.tick = 0;
             $.each(self.datasets, function(k, v){
                 v.data = [[self.tick,valores[i]]];
-                i++;
+                i++; //esto no anda...
             });
+            $.each(self.datasets2, function(k, v){
+                v.data = [[self.tick,valores[i]]];
+                i++;
+            });            
         }        
     }
 );
