@@ -5,12 +5,12 @@ from twisted.internet import reactor
 
 from twisted.enterprise import adbapi
 
-from sys import stdout
-
 from constants import *
 from twisted.python import log
 from twisted.python.logfile import DailyLogFile
-log.startLogging(DailyLogFile('log.txt', LOGDIR))
+#log.startLogging(DailyLogFile('log.txt', LOGDIR))
+from sys import stdout
+log.startLogging(stdout)
 
 from twisted.internet.task import LoopingCall
 
@@ -356,34 +356,19 @@ class TodoPage(LivePage):
     def childFactory(self, ctx, name):
         return TodoPage(name)
 
+class EjPage(rend.Page):
+
+    def renderHTTP(self, ctx):
+        s = render_to_string('my_template.html', { 'foo': 'bar' })
+        return s.encode('utf-8')
+        
 class IndexPage(rend.Page):
 
     def __init__ ( self, *args, **kwargs ):
         rend.Page.__init__ ( self, *args, **kwargs )
 
     def renderHTTP(self, ctx):
-        def renglon(c):
-            r = T.h2 [ " %s : " % c['sitio'],
-                T.a ( href = 'ter/%s' % c['sitio'] ) [ "Ter" ],
-                " - ",
-                T.a ( href = 'graph/%s' % c['sitio'] ) [ "Graph" ],
-                " - ",
-                T.a ( href = 'todo/%s' % c['sitio'] ) [ "Ter + Graph" ],                                
-                ]
-            return r
-        
-        renglones = [renglon(k) for k in factory.clients.values()]
-        s = loaders.stan (
-            T.html [ T.head ( title = 'Indice' ),
-                     T.body [ T.h1 [ "%d clientes conectados" % len(factory.clients) ],
-                              T.div [
-                                renglones
-                              
-                              ]
-                     ]
-            ]
-            )
-        return flat.flatten(s)
+        return render_to_string('sitios.html', {'clientes': factory.clients.values()}).encode('utf-8')
             
     def child_ter(self, ctx):
         return TerPage()
@@ -406,6 +391,18 @@ reactor.listenTCP(8009, site)
 reactor.listenTCP(8080, site)
 
 # DB Pool
-dbpool = adbapi.ConnectionPool('MySQLdb', db='kimera_kimera', user='kimera_kimera', passwd='kimera_kimera')
+dbpool = adbapi.ConnectionPool('MySQLdb', host='10.0.0.10', port=3306, db='kimera_kimera', user='kimera', passwd='kimera')
+
+# DB Django
+import sys
+sys.path = sys.path + ['/home/juanjo/python/twisted/teco/dproj']
+from dproj.piel.models import Robot
+print len(Robot.objects.filter(nombre__startswith='juanjo'))
+
+# Django Templates
+from django.template.loader import render_to_string
+#from django.template import Template, Context
+rendered = render_to_string('my_template.html', { 'foo': 'bar' })
+print rendered
 
 reactor.run()
