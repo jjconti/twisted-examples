@@ -8,8 +8,9 @@ from twisted.enterprise import adbapi
 from sys import stdout
 
 from constants import *
-#from twisted.python import log
-#log.startLogging(stdout)
+from twisted.python import log
+from twisted.python.logfile import DailyLogFile
+log.startLogging(DailyLogFile('log.txt', LOGDIR))
 
 from twisted.internet.task import LoopingCall
 
@@ -116,9 +117,9 @@ class TModBus(LineOnlyReceiver):
         if err == NOERR:
             pass
         elif err == ERRREG:
-            print "Error en el registro %s" % (reg,)   #LOG
+            print "Error en el registro %s" % (reg,)
         elif err == ERRVAL:
-            print "Error en el valor %s" % (val,)  #LOG
+            print "Error en el valor %s" % (val,)
                         
     def ask_id(self, disp):
         self.sendLine(':%02d%d%02d' % (disp, ID, LR))

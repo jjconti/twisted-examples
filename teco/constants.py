@@ -12,3 +12,5 @@ LR = 00 # control de errores
 NOERR = 00
 ERRREG = 91
 ERRVAL = 92
+
+LOGDIR = '/home/juanjo/python/twisted/teco/logs'
