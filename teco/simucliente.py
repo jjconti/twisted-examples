@@ -12,7 +12,7 @@ class CModBus(LineOnlyReceiver):
     def connectionMade(self):
         # Saludo inicial
         sitio = raw_input("Ingresar CDL (3 letras): ")
-        sitio = (sitio + 'ZZZ')[:3].upper()
+        sitio = (sitio + 'JJC')[:3].upper()
         self.sendLine(":0090" + sitio + "00")
         
     def lineReceived(self, line):

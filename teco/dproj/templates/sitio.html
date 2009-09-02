@@ -1,0 +1,14 @@
+<html>
+<head title="{{ sitio.nombre }}">
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<h1>{{ sitio.nombre }}</h1>
+    <div>
+        {% for r in sitio.robot_set.all %}
+        <a href="/sitios/{{ sitio.ccc }}/{{ r.mbdir }}/"><h2>{{ r.nombre }}</h2></a> 
+        {% endfor %}
+    </div>
+
+</body>
+</html>

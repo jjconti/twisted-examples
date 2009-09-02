@@ -1,0 +1,23 @@
+Qué se necesita para usar el ORM de Django sin Django
+
+export DJANGO_SETTINGS_MODULE=dproj.settings
+
+Agregar la carpeta de la app al path:
+
+sys.path = sys.path + ['/home/juanjo/python/twisted/teco/dproj']
+
+Usar path completo para el archivo de 
+
+DATABASE_NAME = '/home/juanjo/python/twisted/teco/dproj/base.db'
+
+
+TEMPLATES
+
+Sale sin problemas.
+
+
+---
+
+Bd heredada
+
+inspectdb + ordenar modesl +  agregar primary_key=True a cada clase

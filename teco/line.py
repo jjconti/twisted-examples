@@ -22,7 +22,7 @@ class TModBus(LineOnlyReceiver):
         
     def connectionMade(self):
         #self.factory.clients.append(self)
-        self.factory.clients[id(self)] = {'self': self, 'sitio': ''}
+        self.factory.clients[id(self)] = {'self': self, 'sitio': None}
         self.peer = self.transport.getPeer()
         print "Nuevo cliente: %s:%d" % (self.peer.host, self.peer.port) #LOG
         print "Total: %d" % (len(self.factory.clients),)
@@ -46,12 +46,15 @@ class TModBus(LineOnlyReceiver):
             print "SITIO", sitio
             # verificar si ya hay un g24 registrado para ese sitio
             for k,v in self.factory.clients.items():
-                if sitio == v['sitio']:
+                if v['sitio'] and sitio == v['sitio'].ccc:
                     print "%s ya estaba conectado. Borrando anterior." % sitio
                     self.factory.clients[k]['self'].transport.loseConnection()
                     del self.factory.clients[k] #move(sitios[sitio])
                     break
-            self.factory.clients[id(self)]['sitio'] = sitio
+            try:
+                self.factory.clients[id(self)]['sitio'] = Sitio.objects.get(ccc=sitio)
+            except Sitio.DoesNotExist:
+                print "El sitio %s no existe en la base de datos." % sitio
             #sitios[sitio] = self    #ver como liberamos el recurso aca
         elif line[3] == '6':
             print "G24 dice: ", line
@@ -63,20 +66,24 @@ class TModBus(LineOnlyReceiver):
             body = line[5:]
             #print "D: %01d F: %s B: %s" % (disp, func, body)
 
+            if disp == 2:
+                print body
+                return
+                
             if func not in VALID_FUNCS:
                 print "Error: funcion desconida."
             else:
                 if func == ID:
-                    self.process_id(body)
+                    self.process_id(disp, body)
                 elif func == RD:
-                    self.process_read(body)
+                    self.process_read(disp, body)
                 elif func == WR:
-                    self.process_write_reg(body)
+                    self.process_write_reg(disp, body)
 
-    def process_id(self, body):
-        print body
+    def process_id(self, disp, body):
+        print "Dispositivo %s: %s" % (disp, body)
         
-    def process_read(self, body):
+    def process_read(self, disp, body):
         ea1 = body[:4]
         ea2 = body[4:8]
         ea3 = body[8:12]
@@ -89,16 +96,18 @@ class TModBus(LineOnlyReceiver):
         b2 = body[33:34]
         b3 = body[34:35]
         b4 = body[35:36]                                    
-        i1 = body[36:37]
+        i1 = body[36:37]    # PONER A LAS VARIABLES MISMOS NOMBRES QUE BD
         i2 = body[37:38]
         print ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2
         print "Guardando en bd"
-        dbpool.runQuery('''INSERT INTO valores (sitio, dispositivo, a1, a2, a3, a4,
-                           c1, c2, c3, c4, b1, b2, b3, b4, i1, i2) VALUES (%s, %s,
+        robot = factory.clients[id(self)]['sitio'].robot_set.get(mbdir=disp)
+        # TRY!!
+        dbpool.runQuery('''INSERT INTO valores (robot, ea1, ea2, ea3, ea4,
+                           re1, re2, re3, re4, sd1, sd2, sd3, sd4, ed1, ed2) VALUES (%s,
                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                          (2, 1, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
+                          (robot.id, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
 
-        sitio = factory.clients[id(self)]['sitio']
+        sitio = factory.clients[id(self)]['sitio'].ccc
         
         if lectores.get(sitio):
             print len(lectores[sitio]), "lectores"
@@ -111,7 +120,7 @@ class TModBus(LineOnlyReceiver):
                 g.callRemote("nuevoValor", u",".join([ea1, ea2, ea3, ea4, c1, c2,
                                                       c3, c4, b1, b2, b3, b4]))
             
-    def process_write_reg(self, body):
+    def process_write_reg(self, disp, body):
         reg = body[2:]
         err = body[2:4]
         if err == NOERR:
@@ -138,8 +147,15 @@ class TModBusFactory(Factory):
     def paso(self):
         print "Clientes actualmente conectados: ", len(self.clients)
         for c in self.clients.values():
-            c['self'].ask_read(1)
-
+            n = 1
+            for r in c['sitio'].robot_set.all():
+                rmbdir = int(r.mbdir)
+                def f(r):
+                    print "Se preguntara al robot ", r
+                    c['self'].ask_read(r)
+                reactor.callLater(5*n,f, rmbdir)
+                n += 1
+                
     def stopFactory(self):
         self.lc.stop()    
        
@@ -148,7 +164,7 @@ class TModBusFactory(Factory):
         self.clients = {}
         self.lc = LoopingCall(self.paso)
         #self.lc.start(60)
-        self.lc.start(5)        
+        self.lc.start(15)        
 
 factory = TModBusFactory()
 reactor.listenTCP(8007, factory)
@@ -169,34 +185,6 @@ def getManholeFactory(namespace, **passwords):
 
 reactor.listenTCP(8888, getManholeFactory(globals(), admin='aaa'))
 
-# WEB
-from twisted.web import server, resource
-
-class Demo(resource.Resource):
-    isLeaf = 1
-
-    def __init__(self, links) :
-        resource.Resource.__init__(self)
-        self.links = links
-        self.factory = factory
-
-    def render_GET(self, request):
-        cliente = request.args['cliente']
-        disp = request.args['disp']
-        func = request.args['func'].pop()
-        if func == 'id':
-            self.factory.clients[int(cliente[0])].ask_id(int(disp[0]))
-        elif func == 'read':
-            self.factory.clients[int(cliente[0])].ask_read(int(disp[0]))
-        elif func == 'write':
-            reg = request.args['reg']
-            val = request.args['val']
-            self.factory.clients[int(cliente[0])].ask_write_reg(int(disp[0]), int(reg[0]), int(val[0]))
-        return "Paquete enviado! " + func
-        
-site = server.Site(Demo([])) 
-reactor.listenTCP(8008, site)
-
 # Nevow / Athena
 
 from twisted.python.util import sibpath
@@ -206,7 +194,8 @@ from nevow.athena import LivePage, LiveElement, expose
 from nevow.loaders import xmlfile
 
 lectores = {}
-
+# RETORNAR NONE PARA 404
+# RENDERHTTP se llama cuando se consumieron todos los segmentos
 class TempElement(LiveElement):
         
     docFactory = xmlfile(sibpath(__file__, 'ter.html'))
@@ -214,7 +203,7 @@ class TempElement(LiveElement):
 
     def __init__(self, sitio=''):
         self.sitio = sitio
-        self.client = [c for c in factory.clients.values() if c['sitio'] == sitio][0]['self']
+        self.client = [c for c in factory.clients.values() if c['sitio'].ccc == sitio.ccc][0]['self']
         super(TempElement, self).__init__()
 
     def read(self):
@@ -368,8 +357,11 @@ class IndexPage(rend.Page):
         rend.Page.__init__ ( self, *args, **kwargs )
 
     def renderHTTP(self, ctx):
-        return render_to_string('sitios.html', {'clientes': factory.clients.values()}).encode('utf-8')
-            
+        return '<a href="/sitios">sitios</a>'
+
+    def child_sitios(self, ctx):
+        return SitiosPage()
+                    
     def child_ter(self, ctx):
         return TerPage()
 
@@ -379,11 +371,47 @@ class IndexPage(rend.Page):
     def child_todo(self, ctx):
         return TodoPage()
 
+class SitiosPage(rend.Page):
+
+    addSlash = True
+    
+    def renderHTTP(self, ctx):
+        return render_to_string('sitios.html', {'clientes': factory.clients.values()}).encode('utf-8')
+        
+    def childFactory(self, ctx, name):
+        # si name esta conectado
+        return SitioPage(name)        
+        
 class SitioPage(rend.Page):
 
-    def __init__ (self, *args, **kwargs):
+    addSlash = True
+    
+    def __init__ (self, name, *args, **kwargs):
+        self.name = name    # VERIFICAR QUE SEA UN SITIO DE LA BD Y QUE ESTE ONLINE
+        self.sitio = Sitio.objects.get(ccc=self.name)
         rend.Page.__init__ ( self, *args, **kwargs )
         
+    def renderHTTP(self, ctx):
+        return render_to_string('sitio.html', {'sitio': self.sitio }).encode('utf-8')
+        
+    def childFactory(self, ctx, name):
+        return RobotPage(name, self.sitio)       
+            
+class RobotPage(rend.Page):
+
+    addSlash = True
+    
+    def __init__ (self, name, sitio, *args, **kwargs):
+        self.name = name
+        self.sitio = sitio
+        rend.Page.__init__ ( self, *args, **kwargs )
+        
+    def renderHTTP(self, ctx):
+        robot = Robot.objects.get(sitio=self.sitio, mbdir=self.name)
+        return render_to_string('robot.html', {'sitio': self.sitio, 'robot': robot }).encode('utf-8')
+        
+    def childFactory(self, ctx, name):
+        return None
         
 from nevow import appserver
 site = appserver.NevowSite(IndexPage())
@@ -396,13 +424,13 @@ dbpool = adbapi.ConnectionPool('MySQLdb', host='10.0.0.10', port=3306, db='kimer
 # DB Django
 import sys
 sys.path = sys.path + ['/home/juanjo/python/twisted/teco/dproj']
-from dproj.piel.models import Robot
-print len(Robot.objects.filter(nombre__startswith='juanjo'))
+from dproj.piel.models import *
+#print len(Robot.objects.filter(nombre__startswith='juanjo'))
 
 # Django Templates
 from django.template.loader import render_to_string
 #from django.template import Template, Context
-rendered = render_to_string('my_template.html', { 'foo': 'bar' })
-print rendered
+#rendered = render_to_string('my_template.html', { 'foo': 'bar' })
+#print rendered
 
 reactor.run()

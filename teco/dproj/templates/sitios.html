@@ -6,11 +6,10 @@
 <h1>{{ clientes|length }} cliente{{ clientes|pluralize }} conectado{{ clientes|pluralize }}</h1>
     <div>
     {% for c in clientes %}
-    <h2> {{ c.sitio }} : 
-    <a href="http://localhost:8080/ter/{{ c.sitio }}">Ter</a> - 
-    <a href="http://localhost:8080/graph/{{ c.sitio }}">Graph</a> - 
-    <a href="http://localhost:8080/todo/{{ c.sitio }}">Ter + Graph</a>
-    </h2>
+    <h2> {{ c.sitio.nombre }}:  </h2>
+        {% for r in c.sitio.robot_set.all %}
+        <a href="/sitios/{{ c.sitio.ccc }}/{{ r.mbdir }}/">{{ r.nombre }}</a> - 
+        {% endfor %}
     {% endfor %}
     </div>
 

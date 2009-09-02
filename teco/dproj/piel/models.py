@@ -120,6 +120,7 @@ class Valor(models.Model):
     ed8 = models.DecimalField(null=True, max_digits=12, decimal_places=0, blank=True)
     ed9 = models.DecimalField(null=True, max_digits=12, decimal_places=0, blank=True)
     ed10 = models.DecimalField(null=True, max_digits=12, decimal_places=0, blank=True)
+    timestamp = models.DateTimeField(null=True)
     class Meta:
         db_table = u'valores'
 
