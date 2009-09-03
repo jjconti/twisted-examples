@@ -5,6 +5,18 @@
 <body>
 <h1>{{ robot.nombre }} en {{ sitio.nombre }}</h1>
 <p>{{ robot.observaciones }}</p>
-
+<h2>&Uacute;ltimos valores recibidos</h2>
+<table border="1">
+<tr><th>ea1</th><th>ea2</th><th>ea3</th><th>ea4</th><th>re1</th><th>re2</th><th>re3</th><th>re4</th>
+<th>sd1</th><th>sd2</th><th>sd3</th><th>sd4</th><th>ed1</th><th>ed2</th><th>timestamp</th></tr>
+{% for v in valores %}
+<tr>
+<td>{{ v.ea1 }}</td><td>{{ v.ea2 }}</td><td>{{ v.ea3 }}</td><td>{{ v.ea4 }}</td>
+<td>{{ v.re1 }}</td><td>{{ v.re2 }}</td><td>{{ v.re3 }}</td><td>{{ v.re4 }}</td>
+<td>{{ v.sd1 }}</td><td>{{ v.sd2 }}</td><td>{{ v.sd3 }}</td><td>{{ v.sd4 }}</td>
+<td>{{ v.ed1 }}</td><td>{{ v.ed2 }}</td><td>{{ v.timestamp }}</td>
+</tr>
+{% endfor %}
+</table>
 </body>
 </html>

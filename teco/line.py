@@ -65,18 +65,17 @@ class TModBus(LineOnlyReceiver):
             func = int(line[3:5])   #EXC
             body = line[5:]
             #print "D: %01d F: %s B: %s" % (disp, func, body)
-
-            if disp == 2:
-                print body
-                return
-                
+         
             if func not in VALID_FUNCS:
                 print "Error: funcion desconida."
             else:
                 if func == ID:
                     self.process_id(disp, body)
                 elif func == RD:
-                    self.process_read(disp, body)
+                    if disp == 1:
+                        self.process_read(disp, body)
+                    elif disp == 2:
+                        self.process_read_mca(disp, body)   # PARCHE, USAR REGEX
                 elif func == WR:
                     self.process_write_reg(disp, body)
 
@@ -98,6 +97,43 @@ class TModBus(LineOnlyReceiver):
         b4 = body[35:36]                                    
         i1 = body[36:37]    # PONER A LAS VARIABLES MISMOS NOMBRES QUE BD
         i2 = body[37:38]
+        print ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2
+        print "Guardando en bd"
+        robot = factory.clients[id(self)]['sitio'].robot_set.get(mbdir=disp)
+        # TRY!!
+        dbpool.runQuery('''INSERT INTO valores (robot, ea1, ea2, ea3, ea4,
+                           re1, re2, re3, re4, sd1, sd2, sd3, sd4, ed1, ed2) VALUES (%s,
+                           %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+                          (robot.id, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
+
+        sitio = factory.clients[id(self)]['sitio'].ccc
+        
+        if lectores.get(sitio):
+            print len(lectores[sitio]), "lectores"
+            for l in lectores[sitio].values():
+                l.callRemote('actualizarValores', u','.join([ea1, ea2, ea3, ea4, c1, c2,
+                                                             c3, c4, b1, b2, b3, b4, i1, i2]))
+        if graficos.get(sitio):
+            print len(graficos[sitio]), "graficos"
+            for g in graficos[sitio].values():
+                g.callRemote("nuevoValor", u",".join([ea1, ea2, ea3, ea4, c1, c2,
+                                                      c3, c4, b1, b2, b3, b4]))
+
+    def process_read_mca(self, disp, body):
+        ea1 = body[:3]
+        ea2 = body[3:6]
+        ea3 = body[6:9]
+        ea4 = body[9:13]
+        c1 = body[13:16]
+        c2 = body[16:19]
+        c3 = body[19:21]
+        c4 = body[21:25]
+        b1 = body[25:26]
+        b2 = body[26:27]
+        b3 = body[27:28]
+        b4 = body[28:29]                                    
+        i1 = body[30:31]    # PONER A LAS VARIABLES MISMOS NOMBRES QUE BD
+        i2 = body[31:32]
         print ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2
         print "Guardando en bd"
         robot = factory.clients[id(self)]['sitio'].robot_set.get(mbdir=disp)
@@ -408,7 +444,8 @@ class RobotPage(rend.Page):
         
     def renderHTTP(self, ctx):
         robot = Robot.objects.get(sitio=self.sitio, mbdir=self.name)
-        return render_to_string('robot.html', {'sitio': self.sitio, 'robot': robot }).encode('utf-8')
+        valores = Valor.objects.filter(robot=robot).reverse()[:25]
+        return render_to_string('robot.html', {'sitio': self.sitio, 'robot': robot, 'valores': valores }).encode('utf-8')
         
     def childFactory(self, ctx, name):
         return None
