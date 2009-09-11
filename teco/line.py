@@ -15,10 +15,11 @@ log.startLogging(stdout)
 from twisted.internet.task import LoopingCall
 
 
-class TModBus(LineOnlyReceiver):
-
     def lineReceived(self, line):
-        self.process(line)
+        try:
+            self.process(line)
+        except:
+            print "Se recibio un valor erroneo en line."
         
     def connectionMade(self):
         #self.factory.clients.append(self)
@@ -35,6 +36,16 @@ class TModBus(LineOnlyReceiver):
         #TODO: do something with reason
         
     def process(self, line):    #FIXME: esta funcion debe detectar errores
+
+        # Si se esta accediendo al cliente mediante una terminal
+        # las lineas recibidas no son procesadas sino directamente
+        # enviadas a la pantalla de la terminal correspondiente.
+        if id(self) in terminales:
+            terminales[id(self)].terminal.write('R: ' + line)
+            terminales[id(self)].terminal.nextLine()
+            terminales[id(self)].showPrompt()
+            return
+        
         #print "-%s-" % (line,)
         #return
         #print "R: %s:%d %s" % (self.peer.host, self.peer.port, line)  #LOG
@@ -99,12 +110,18 @@ class TModBus(LineOnlyReceiver):
         i2 = body[37:38]
         print ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2
         print "Guardando en bd"
+
         robot = factory.clients[id(self)]['sitio'].robot_set.get(mbdir=disp)
         # TRY!!
-        dbpool.runQuery('''INSERT INTO valores (robot, ea1, ea2, ea3, ea4,
-                           re1, re2, re3, re4, sd1, sd2, sd3, sd4, ed1, ed2) VALUES (%s,
-                           %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                          (robot.id, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
+        try:
+            #dbpool.runQuery('''INSERT INTO valores (robot, ea1, ea2, ea3, ea4,
+            #                   re1, re2, re3, re4, sd1, sd2, sd3, sd4, ed1, ed2) VALUES (%s,
+            #                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+            #                  (robot.id, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
+            v = Valor(robot=robot.id, ea1=ea1, ea2=ea2, ea3=ea3, ea4=ea4, re1=c1, re2=c2, re3=c3, re4=c4, sd1=b1, sd2=b2, sd3=b3, sd4=b4, ed1=i1, ed1=i2)
+            v.save()
+        except:
+            print "no aceptamos basura en la base de datos"
 
         sitio = factory.clients[id(self)]['sitio'].ccc
         
@@ -137,12 +154,14 @@ class TModBus(LineOnlyReceiver):
         print ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2
         print "Guardando en bd"
         robot = factory.clients[id(self)]['sitio'].robot_set.get(mbdir=disp)
-        # TRY!!
-        dbpool.runQuery('''INSERT INTO valores (robot, ea1, ea2, ea3, ea4,
-                           re1, re2, re3, re4, sd1, sd2, sd3, sd4, ed1, ed2) VALUES (%s,
-                           %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                          (robot.id, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
 
+        try:
+            dbpool.runQuery('''INSERT INTO valores (robot, ea1, ea2, ea3, ea4,
+                               re1, re2, re3, re4, sd1, sd2, sd3, sd4, ed1, ed2) VALUES (%s,
+                               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+                              (robot.id, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
+        except:
+            print "no aceptamos basura en la base de datos"            
         sitio = factory.clients[id(self)]['sitio'].ccc
         
         if lectores.get(sitio):
@@ -182,15 +201,18 @@ class TModBusFactory(Factory):
     
     def paso(self):
         print "Clientes actualmente conectados: ", len(self.clients)
-        for c in self.clients.values():
+        for k,c in self.clients.items():
+            if k in terminales: # en terminales la clave es id(cliente)
+                continue
             n = 1
-            for r in c['sitio'].robot_set.all():
-                rmbdir = int(r.mbdir)
-                def f(r):
-                    print "Se preguntara al robot ", r
-                    c['self'].ask_read(r)
-                reactor.callLater(5*n,f, rmbdir)
-                n += 1
+            if c['sitio']:
+                for r in c['sitio'].robot_set.all():
+                    rmbdir = int(r.mbdir)
+                    def f(r):
+                        print "Se preguntara al robot ", r
+                        c['self'].ask_read(r)
+                    reactor.callLater(5*n,f, rmbdir)
+                    n += 1
                 
     def stopFactory(self):
         self.lc.stop()    
@@ -203,7 +225,8 @@ class TModBusFactory(Factory):
         self.lc.start(15)        
 
 factory = TModBusFactory()
-reactor.listenTCP(8007, factory)
+#reactor.listenTCP(8007, factory)
+reactor.listenTCP(8017, factory)
 
 from twisted.conch import manhole, manhole_ssh
 from twisted.cred import portal, checkers 
@@ -219,7 +242,196 @@ def getManholeFactory(namespace, **passwords):
     f = manhole_ssh.ConchFactory(p)
     return f
 
-reactor.listenTCP(8888, getManholeFactory(globals(), admin='aaa'))
+reactor.listenTCP(8822, getManholeFactory(globals(), admin='aaa'))
+
+# Terminal de comandos
+terminales = {}
+
+from twisted.cred import portal, checkers, credentials
+from twisted.conch import error, avatar, recvline, interfaces as conchinterfaces
+from twisted.conch.ssh import userauth, connection, keys, session, common
+from twisted.conch.ssh import factory as sshfactory
+from twisted.conch.insults import insults
+from twisted.application import service, internet
+from zope.interface import implements
+import os
+import twisted.python
+
+class SecureCommandsProtocol(recvline.HistoricRecvLine):
+    def __init__(self, user):
+        self.user = user
+        self.prompt = '> '
+        self.mode = 0
+        self.cliente = None
+        self.sitio = None
+
+    def connectionMade(self) :
+        recvline.HistoricRecvLine.connectionMade(self)
+        self.terminal.write("Bienvenido al sistema de control mediante comandos")
+        self.terminal.nextLine()
+        self.do_help()
+        self.showPrompt()
+
+    def connectionLost(self, reason):
+        if self.mode == 1:
+            del terminales[id(self.cliente)]
+            
+    def showPrompt(self):
+        self.terminal.write(self.prompt)
+
+    def getCommandFunc(self, cmd):
+        return getattr(self, 'do_' + cmd, None)
+
+    def lineReceived(self, line):
+        line = line.strip()
+        if line:
+            cmdAndArgs = line.split()
+            cmd = cmdAndArgs[0]
+            args = cmdAndArgs[1:]
+            func = self.getCommandFunc(cmd)
+            if func:
+                try:
+                    func(*args)
+                except Exception, e:
+                    self.terminal.write("Error: %s" % e)
+                    self.terminal.nextLine()
+            elif line.startswith(':') and self.mode == 1:   # modo sitio ccc>
+                self.cliente.sendLine(line)
+            else:
+                self.terminal.write("No existe el comando")
+                self.terminal.nextLine()
+        self.showPrompt()
+
+    def do_help(self, cmd=''):
+        "Ayuda de los comandos. Uso: help comando"
+        if cmd:
+            func = self.getCommandFunc(cmd)
+            if func:
+                self.terminal.write(func.__doc__)
+                self.terminal.nextLine()
+                return
+
+        publicMethods = filter(
+            lambda funcname: funcname.startswith('do_'), dir(self))
+        commands = [cmd.replace('do_', '', 1) for cmd in publicMethods]
+        self.terminal.write("Comandos: " + " ".join(commands))
+        self.terminal.nextLine()
+
+    def do_eco(self, *args):
+        "Eco de una cadena de texto. Uso: eco cadena de texto"
+        self.terminal.write(" ".join(args))
+        self.terminal.nextLine()
+
+    def do_whoami(self):
+        "Prints your user name. Usage: whoami"
+        self.terminal.write(self.user.username)
+        self.terminal.nextLine()
+
+    def do_quit(self):
+        "Finaliza la sesion o sale del sitio. Uso: quit"
+        if self.mode == 0:
+            self.terminal.write("Hasta luego")
+            self.terminal.nextLine()
+            self.terminal.loseConnection()
+        else:
+            self.mode = 0
+            self.prompt = "> "
+            del terminales[id(self.cliente)]
+            self.cliente = None
+            self.sitio = None
+
+    def do_clear(self):
+        "Limpia la pantalla. Uso: clear"
+        self.terminal.reset()
+
+    def do_list(self):
+        "Lista los sitios conectados. Uso: list"
+        sitios = [c['sitio'].ccc for c in factory.clients.values()]
+        self.terminal.write(" ".join(sitios).encode('ascii'))
+        self.terminal.nextLine()
+        
+    def do_sitio(self, ccc):
+        "Permite acceder a un sitio. Uso: sitio ccc"
+        ccc = ccc.upper()[:3]
+        try:
+            self.sitio = Sitio.objects.get(ccc=ccc)
+        except:
+            self.terminal.write("El sitio %s no existe en la bd." % ccc)
+            self.terminal.nextLine()
+            return
+        try:
+            self.cliente = [c for c in factory.clients.values() if c['sitio'] == self.sitio][0]['self']
+        except:
+            self.terminal.write('No se puede enviar comandos. Sitio %s no conectado.' % ccc)
+            self.terminal.nextLine()
+            return
+        self.prompt = "%s> " % ccc
+        terminales[id(self.cliente)] = self
+        self.mode = 1
+        self.terminal.nextLine()
+        
+
+class SecureCommandsAvatar(avatar.ConchUser):
+    implements(conchinterfaces.ISession)
+
+    def __init__(self, username):
+        avatar.ConchUser.__init__(self)
+        self.username = username
+        self.channelLookup.update({'session':session.SSHSession})
+
+    def openShell(self, protocol):
+        serverProtocol = insults.ServerProtocol(SecureCommandsProtocol, self)
+        serverProtocol.makeConnection(protocol)
+        protocol.makeConnection(session.wrapProtocol(serverProtocol))
+
+    def getPty(self, terminal, windowSize, attrs):
+        return None
+
+    def execCommand(self, protocol, cmd):
+        raise NotImplementedError
+
+    def closed(self):
+        pass
+
+class SecureCommandsRealm:
+    implements(portal.IRealm)
+
+    def requestAvatar(self, avatarId, mind, *interfaces):
+        if conchinterfaces.IConchUser in interfaces:
+            return interfaces[0], SecureCommandsAvatar(avatarId), lambda: None
+        else:
+            raise Exception, "No supported interfaces found."
+
+def getRSAKeys():
+    if not (os.path.exists('public.key') and os.path.exists('private.key')):
+        # generate a RSA keypair
+        print "Generating RSA keypair..."
+        from Crypto.PublicKey import RSA
+        KEY_LENGTH = 1024
+        #rsaKey = RSA.generate(KEY_LENGTH, common.entropy.get_bytes)
+        rsaKey = RSA.generate(KEY_LENGTH, twisted.python.randbytes.secureRandom)
+        publicKeyString = keys.Key(rsaKey).toString('OPENSSH')
+        privateKeyString = keys.makePrivateKeyString(rsaKey)
+        # save keys for next time
+        file('public.key', 'w+b').write(publicKeyString)
+        file('private.key', 'w+b').write(privateKeyString)
+        print "done."
+    else:
+        publicKeyString = file('public.key').read()
+        privateKeyString = file('private.key').read()
+    return publicKeyString, privateKeyString
+
+sshFactory = sshfactory.SSHFactory()
+sshFactory.portal = portal.Portal(SecureCommandsRealm())
+users = {'admin': 'aaa', 'guest': 'bbb'}
+sshFactory.portal.registerChecker(
+                 checkers.InMemoryUsernamePasswordDatabaseDontUse(**users))
+
+pubKeyString, privKeyString = getRSAKeys()
+sshFactory.publicKeys = {'ssh-rsa': keys.Key.fromString(pubKeyString)}
+sshFactory.privateKeys = {'ssh-rsa': keys.Key.fromString(privKeyString)}
+
+reactor.listenTCP(8222, sshFactory)
 
 # Nevow / Athena
 
@@ -443,8 +655,11 @@ class RobotPage(rend.Page):
         rend.Page.__init__ ( self, *args, **kwargs )
         
     def renderHTTP(self, ctx):
+        print "generando pagina" * 5
         robot = Robot.objects.get(sitio=self.sitio, mbdir=self.name)
-        valores = Valor.objects.filter(robot=robot).reverse()[:25]
+        count = Valor.objects.filter(robot=robot).count()
+        print "COUNT", count
+        valores = Valor.objects.filter(robot=robot)[count -20:count]
         return render_to_string('robot.html', {'sitio': self.sitio, 'robot': robot, 'valores': valores }).encode('utf-8')
         
     def childFactory(self, ctx, name):
@@ -452,17 +667,20 @@ class RobotPage(rend.Page):
         
 from nevow import appserver
 site = appserver.NevowSite(IndexPage())
-reactor.listenTCP(8009, site)
-reactor.listenTCP(8080, site)
+#reactor.listenTCP(8009, site)
+#reactor.listenTCP(8080, site)
 
 # DB Pool
 dbpool = adbapi.ConnectionPool('MySQLdb', host='10.0.0.10', port=3306, db='kimera_kimera', user='kimera', passwd='kimera')
 
 # DB Django
 import sys
-sys.path = sys.path + ['/home/juanjo/python/twisted/teco/dproj']
+
+#sys.path = sys.path + ['/home/juanjo/python/twisted/teco/dproj']
+sys.path = sys.path + ['C:\Documents and Settings\Teco2006\Escritorio\line\dproj']
 from dproj.piel.models import *
 #print len(Robot.objects.filter(nombre__startswith='juanjo'))
+
 
 # Django Templates
 from django.template.loader import render_to_string
