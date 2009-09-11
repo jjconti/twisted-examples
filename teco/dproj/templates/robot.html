@@ -4,7 +4,7 @@
 </head>
 <body>
 <h1>{{ robot.nombre }} en {{ sitio.nombre }}</h1>
-<p>{{ robot.observaciones }}</p>
+<p>{{ robot.observaciones|default_if_none:"" }}</p>
 <h2>&Uacute;ltimos valores recibidos</h2>
 <table border="1">
 <tr><th>ea1</th><th>ea2</th><th>ea3</th><th>ea4</th><th>re1</th><th>re2</th><th>re3</th><th>re4</th>

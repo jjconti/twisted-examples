@@ -42,6 +42,8 @@ class Sitio(models.Model):
     class Meta:
         db_table = u'sitios'
 
+    def __unicode__(self):
+        return unicode(self.ccc)
 
 class RobotTipoIO(models.Model):
     id = models.IntegerField(primary_key=True, unique=True)
@@ -53,6 +55,7 @@ class RobotTipoIO(models.Model):
 class RobotTipo(models.Model):
     id = models.IntegerField(primary_key=True, unique=True)
     nombre = models.CharField(max_length=120, blank=True)
+    mascara = models.CharField(max_length=200, blank=True)
     class Meta:
         db_table = u'robots_tipos'
         

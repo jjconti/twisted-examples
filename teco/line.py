@@ -15,11 +15,22 @@ log.startLogging(stdout)
 from twisted.internet.task import LoopingCall
 
 
+# DB Django
+import sys
+
+sys.path = sys.path + ['/home/juanjo/python/twisted/teco/dproj']
+#sys.path = sys.path + ['C:\Documents and Settings\Teco2006\Escritorio\line\dproj']
+from dproj.piel.models import *
+#print len(Robot.objects.filter(nombre__startswith='juanjo'))
+
+
+class TModBus(LineOnlyReceiver):
+
     def lineReceived(self, line):
-        try:
-            self.process(line)
-        except:
-            print "Se recibio un valor erroneo en line."
+        #try:
+        self.process(line)
+        #except Exception, e:
+        #    print "Se recibio un valor erroneo en line.", e
         
     def connectionMade(self):
         #self.factory.clients.append(self)
@@ -63,7 +74,8 @@ from twisted.internet.task import LoopingCall
                     del self.factory.clients[k] #move(sitios[sitio])
                     break
             try:
-                self.factory.clients[id(self)]['sitio'] = Sitio.objects.get(ccc=sitio)
+                self.sitio = Sitio.objects.get(ccc=sitio)
+                self.factory.clients[id(self)]['sitio'] = self.sitio    #dejar uno solo
             except Sitio.DoesNotExist:
                 print "El sitio %s no existe en la base de datos." % sitio
             #sitios[sitio] = self    #ver como liberamos el recurso aca
@@ -83,98 +95,44 @@ from twisted.internet.task import LoopingCall
                 if func == ID:
                     self.process_id(disp, body)
                 elif func == RD:
-                    if disp == 1:
-                        self.process_read(disp, body)
-                    elif disp == 2:
-                        self.process_read_mca(disp, body)   # PARCHE, USAR REGEX
+                    self.process_read(disp, body)
                 elif func == WR:
                     self.process_write_reg(disp, body)
 
     def process_id(self, disp, body):
         print "Dispositivo %s: %s" % (disp, body)
         
+    import re
+    mascaras = {}
+    for r in RobotTipo.objects.all():
+        print r.mascara
+        mascaras[r.id] = re.compile(str(r.mascara))
     def process_read(self, disp, body):
-        ea1 = body[:4]
-        ea2 = body[4:8]
-        ea3 = body[8:12]
-        ea4 = body[12:16]
-        c1 = body[16:20]
-        c2 = body[20:24]
-        c3 = body[24:28]
-        c4 = body[28:32]
-        b1 = body[32:33]
-        b2 = body[33:34]
-        b3 = body[34:35]
-        b4 = body[35:36]                                    
-        i1 = body[36:37]    # PONER A LAS VARIABLES MISMOS NOMBRES QUE BD
-        i2 = body[37:38]
-        print ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2
-        print "Guardando en bd"
-
-        robot = factory.clients[id(self)]['sitio'].robot_set.get(mbdir=disp)
-        # TRY!!
-        try:
-            #dbpool.runQuery('''INSERT INTO valores (robot, ea1, ea2, ea3, ea4,
-            #                   re1, re2, re3, re4, sd1, sd2, sd3, sd4, ed1, ed2) VALUES (%s,
-            #                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-            #                  (robot.id, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
-            v = Valor(robot=robot.id, ea1=ea1, ea2=ea2, ea3=ea3, ea4=ea4, re1=c1, re2=c2, re3=c3, re4=c4, sd1=b1, sd2=b2, sd3=b3, sd4=b4, ed1=i1, ed1=i2)
-            v.save()
-        except:
-            print "no aceptamos basura en la base de datos"
-
-        sitio = factory.clients[id(self)]['sitio'].ccc
         
-        if lectores.get(sitio):
-            print len(lectores[sitio]), "lectores"
-            for l in lectores[sitio].values():
-                l.callRemote('actualizarValores', u','.join([ea1, ea2, ea3, ea4, c1, c2,
-                                                             c3, c4, b1, b2, b3, b4, i1, i2]))
-        if graficos.get(sitio):
-            print len(graficos[sitio]), "graficos"
-            for g in graficos[sitio].values():
-                g.callRemote("nuevoValor", u",".join([ea1, ea2, ea3, ea4, c1, c2,
-                                                      c3, c4, b1, b2, b3, b4]))
-
-    def process_read_mca(self, disp, body):
-        ea1 = body[:3]
-        ea2 = body[3:6]
-        ea3 = body[6:9]
-        ea4 = body[9:13]
-        c1 = body[13:16]
-        c2 = body[16:19]
-        c3 = body[19:21]
-        c4 = body[21:25]
-        b1 = body[25:26]
-        b2 = body[26:27]
-        b3 = body[27:28]
-        b4 = body[28:29]                                    
-        i1 = body[30:31]    # PONER A LAS VARIABLES MISMOS NOMBRES QUE BD
-        i2 = body[31:32]
-        print ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2
-        print "Guardando en bd"
         robot = factory.clients[id(self)]['sitio'].robot_set.get(mbdir=disp)
+        m = TModBus.mascaras[robot.tipo.id].match(body)
+        if m:
+            try:
+                d = m.groupdict() 
+                v = Valor(**d)
+                v.save()
+                print "Guradado en al BD", self.sitio, disp, d
+            except Exception, e:
+                print "Error al intentar guardar los datos en la BD.", e
 
-        try:
-            dbpool.runQuery('''INSERT INTO valores (robot, ea1, ea2, ea3, ea4,
-                               re1, re2, re3, re4, sd1, sd2, sd3, sd4, ed1, ed2) VALUES (%s,
-                               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                              (robot.id, ea1, ea2, ea3, ea4, c1, c2, c3, c4, b1, b2, b3, b4, i1, i2))
-        except:
-            print "no aceptamos basura en la base de datos"            
-        sitio = factory.clients[id(self)]['sitio'].ccc
-        
-        if lectores.get(sitio):
-            print len(lectores[sitio]), "lectores"
-            for l in lectores[sitio].values():
-                l.callRemote('actualizarValores', u','.join([ea1, ea2, ea3, ea4, c1, c2,
-                                                             c3, c4, b1, b2, b3, b4, i1, i2]))
-        if graficos.get(sitio):
-            print len(graficos[sitio]), "graficos"
-            for g in graficos[sitio].values():
-                g.callRemote("nuevoValor", u",".join([ea1, ea2, ea3, ea4, c1, c2,
-                                                      c3, c4, b1, b2, b3, b4]))
+            sitio = factory.clients[id(self)]['sitio'].ccc
             
+            if lectores.get(sitio):
+                print len(lectores[sitio]), "lectores"
+                for l in lectores[sitio].values():
+                    l.callRemote('actualizarValores', u','.join([v.ea1, v.ea2, v.ea3, v.ea4, v.c1, v.c2,
+                                                                 v.c3, v.c4, v.b1, v.b2, v.b3, v.b4, v.i1, v.i2]))
+            if graficos.get(sitio):
+                print len(graficos[sitio]), "graficos"
+                for g in graficos[sitio].values():
+                    g.callRemote("nuevoValor", u",".join([v.ea1, v.ea2, v.ea3, v.ea4, v.c1, v.c2,
+                                                      v.c3, v.c4, v.b1, v.b2, v.b3, v.b4]))
+
     def process_write_reg(self, disp, body):
         reg = body[2:]
         err = body[2:4]
@@ -196,6 +154,7 @@ from twisted.internet.task import LoopingCall
         print "Enviando: %s" % line
         self.sendLine(line)
             
+
 class TModBusFactory(Factory):
     protocol = TModBus
     
@@ -668,19 +627,10 @@ class RobotPage(rend.Page):
 from nevow import appserver
 site = appserver.NevowSite(IndexPage())
 #reactor.listenTCP(8009, site)
-#reactor.listenTCP(8080, site)
+reactor.listenTCP(8080, site)
 
 # DB Pool
 dbpool = adbapi.ConnectionPool('MySQLdb', host='10.0.0.10', port=3306, db='kimera_kimera', user='kimera', passwd='kimera')
-
-# DB Django
-import sys
-
-#sys.path = sys.path + ['/home/juanjo/python/twisted/teco/dproj']
-sys.path = sys.path + ['C:\Documents and Settings\Teco2006\Escritorio\line\dproj']
-from dproj.piel.models import *
-#print len(Robot.objects.filter(nombre__startswith='juanjo'))
-
 
 # Django Templates
 from django.template.loader import render_to_string
