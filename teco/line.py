@@ -18,8 +18,8 @@ from twisted.internet.task import LoopingCall
 # DB Django
 import sys
 
-sys.path = sys.path + ['/home/juanjo/python/twisted/teco/dproj']
-#sys.path = sys.path + ['C:\Documents and Settings\Teco2006\Escritorio\line\dproj']
+#sys.path = sys.path + ['/home/juanjo/python/twisted/teco/dproj']
+sys.path = sys.path + ['C:\Documents and Settings\Teco2006\Escritorio\line\dproj']
 from dproj.piel.models import *
 #print len(Robot.objects.filter(nombre__startswith='juanjo'))
 
@@ -27,10 +27,10 @@ from dproj.piel.models import *
 class TModBus(LineOnlyReceiver):
 
     def lineReceived(self, line):
-        #try:
-        self.process(line)
-        #except Exception, e:
-        #    print "Se recibio un valor erroneo en line.", e
+        try:
+            self.process(line)
+        except Exception, e:
+            print "Se recibio un valor erroneo en line.", e
         
     def connectionMade(self):
         #self.factory.clients.append(self)
@@ -113,7 +113,8 @@ class TModBus(LineOnlyReceiver):
         m = TModBus.mascaras[robot.tipo.id].match(body)
         if m:
             try:
-                d = m.groupdict() 
+                d = m.groupdict()
+                d['robot'] = robot
                 v = Valor(**d)
                 v.save()
                 print "Guradado en al BD", self.sitio, disp, d
@@ -167,10 +168,10 @@ class TModBusFactory(Factory):
             if c['sitio']:
                 for r in c['sitio'].robot_set.all():
                     rmbdir = int(r.mbdir)
-                    def f(r):
-                        print "Se preguntara al robot ", r
-                        c['self'].ask_read(r)
-                    reactor.callLater(5*n,f, rmbdir)
+                    def f(r, cl):
+                        print "Se preguntara al robot ", r, cl['sitio'].ccc
+                        cl['self'].ask_read(r)
+                    reactor.callLater(5*n,f, rmbdir, c)
                     n += 1
                 
     def stopFactory(self):
@@ -184,8 +185,8 @@ class TModBusFactory(Factory):
         self.lc.start(15)        
 
 factory = TModBusFactory()
-#reactor.listenTCP(8007, factory)
-reactor.listenTCP(8017, factory)
+reactor.listenTCP(8007, factory)
+#reactor.listenTCP(8017, factory)
 
 from twisted.conch import manhole, manhole_ssh
 from twisted.cred import portal, checkers 
@@ -626,7 +627,7 @@ class RobotPage(rend.Page):
         
 from nevow import appserver
 site = appserver.NevowSite(IndexPage())
-#reactor.listenTCP(8009, site)
+reactor.listenTCP(8009, site)
 reactor.listenTCP(8080, site)
 
 # DB Pool

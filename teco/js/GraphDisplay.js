@@ -131,7 +131,7 @@ GraphDisplay.GraphWidget.methods(
             self.tick = 0;
             $.each(self.datasets, function(k, v){
                 v.data = [[self.tick,valores[i]]];
-                i++; //esto no anda...
+                i++;
             });
             $.each(self.datasets2, function(k, v){
                 v.data = [[self.tick,valores[i]]];
