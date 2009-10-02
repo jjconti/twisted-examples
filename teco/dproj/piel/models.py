@@ -19,14 +19,18 @@ class Magnitud(models.Model):
     class Meta:
         db_table = u'magnitudes'
 
-
+    def __unicode__(self):
+        return u"%s en %s" % (self.nombre, self.uni)
+        
 class Medida(models.Model):
     id = models.IntegerField(primary_key=True, unique=True)
     texto = models.CharField(max_length=240, blank=True)
     class Meta:
         db_table = u'medidas'
 
-
+    def __unicode__(self):
+        return self.texto
+        
 class Provincia(models.Model):
     id = models.IntegerField(primary_key=True, unique=True)
     zona_id = models.IntegerField(null=True, blank=True)
@@ -43,7 +47,7 @@ class Sitio(models.Model):
         db_table = u'sitios'
 
     def __unicode__(self):
-        return unicode(self.ccc)
+        return self.ccc
 
 class RobotTipoIO(models.Model):
     id = models.IntegerField(primary_key=True, unique=True)
@@ -51,7 +55,9 @@ class RobotTipoIO(models.Model):
     class Meta:
         db_table = u'robots_tipoio'
 
-
+    def __unicode__(self):
+        return self.nombre
+        
 class RobotTipo(models.Model):
     id = models.IntegerField(primary_key=True, unique=True)
     nombre = models.CharField(max_length=120, blank=True)
@@ -59,7 +65,9 @@ class RobotTipo(models.Model):
     class Meta:
         db_table = u'robots_tipos'
         
-        
+    def __unicode__(self):
+        return self.nombre
+                
 class Robot(models.Model):
     id = models.IntegerField(primary_key=True, unique=True)
     tipo = models.ForeignKey(RobotTipo, null=True, db_column='tipo', blank=True)
@@ -70,6 +78,8 @@ class Robot(models.Model):
     class Meta:
         db_table = u'robots'
 
+    def __unicode__(self):
+        return u"%s en %s" % (self.mbdir, self.sitio)
 
 class RobotConfig(models.Model):
     id = models.IntegerField(primary_key=True, unique=True)
@@ -127,3 +137,16 @@ class Valor(models.Model):
     class Meta:
         db_table = u'valores'
 
+EVENTO_CHOICES = (
+    ('I', 'Informacion'),
+    ('W', 'Advertencia'),
+    ('A', 'Alerta'),
+)
+
+class Evento(models.Model):
+    timestamp = models.DateTimeField(null=True, auto_now=True)
+    tipo = models.CharField(max_length=1, choices=EVENTO_CHOICES)
+    texto = models.CharField(max_length=60, blank=True)
+    
+    def __unicode__(self):
+        return "%s: %s - %s" % (self.timestamp, self.tipo, self.texto)

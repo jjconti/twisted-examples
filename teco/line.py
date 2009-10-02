@@ -14,14 +14,17 @@ log.startLogging(stdout)
 
 from twisted.internet.task import LoopingCall
 
+from twisted.internet.threads import deferToThread
 
 # DB Django
 import sys
 
-#sys.path = sys.path + ['/home/juanjo/python/twisted/teco/dproj']
-sys.path = sys.path + ['C:\Documents and Settings\Teco2006\Escritorio\line\dproj']
+sys.path = sys.path + ['/home/juanjo/python/twisted/teco/dproj']
+#sys.path = sys.path + ['C:\Documents and Settings\Teco2006\Escritorio\line\dproj']
 from dproj.piel.models import *
 #print len(Robot.objects.filter(nombre__startswith='juanjo'))
+# Django Templates
+from django.template.loader import render_to_string
 
 
 class TModBus(LineOnlyReceiver):
@@ -38,6 +41,7 @@ class TModBus(LineOnlyReceiver):
         self.peer = self.transport.getPeer()
         print "Nuevo cliente: %s:%d" % (self.peer.host, self.peer.port) #LOG
         print "Total: %d" % (len(self.factory.clients),)
+        deferToThread(Evento(tipo='I', texto="Nuevo cliente: %s:%d" % (self.peer.host, self.peer.port)).save)
     
     def connectionLost(self, reason):
         if id(self) in self.factory.clients:
@@ -70,14 +74,17 @@ class TModBus(LineOnlyReceiver):
             for k,v in self.factory.clients.items():
                 if v['sitio'] and sitio == v['sitio'].ccc:
                     print "%s ya estaba conectado. Borrando anterior." % sitio
+                    deferToThread(Evento(tipo='W', texto="%s ya estaba conectado. Borrando anterior." % sitio).save)
                     self.factory.clients[k]['self'].transport.loseConnection()
                     del self.factory.clients[k] #move(sitios[sitio])
                     break
             try:
                 self.sitio = Sitio.objects.get(ccc=sitio)
                 self.factory.clients[id(self)]['sitio'] = self.sitio    #dejar uno solo
+                Evento(tipo='I', texto="Se conecto el sitio %s" % self.sitio).save()
             except Sitio.DoesNotExist:
                 print "El sitio %s no existe en la base de datos." % sitio
+                deferToThread(Evento(tipo='A', texto="El sitio %s no existe en la base de datos." % sitio).save)
             #sitios[sitio] = self    #ver como liberamos el recurso aca
         elif line[3] == '6':
             print "G24 dice: ", line
@@ -121,18 +128,18 @@ class TModBus(LineOnlyReceiver):
             except Exception, e:
                 print "Error al intentar guardar los datos en la BD.", e
 
-            sitio = factory.clients[id(self)]['sitio'].ccc
+            sitio = factory.clients[id(self)]['sitio']
             
             if lectores.get(sitio):
                 print len(lectores[sitio]), "lectores"
                 for l in lectores[sitio].values():
-                    l.callRemote('actualizarValores', u','.join([v.ea1, v.ea2, v.ea3, v.ea4, v.c1, v.c2,
-                                                                 v.c3, v.c4, v.b1, v.b2, v.b3, v.b4, v.i1, v.i2]))
+                    l.callRemote('actualizarValores', u','.join([v.ea1, v.ea2, v.ea3, v.ea4, v.re1, v.re2,
+                                                                 v.re3, v.re4, v.sd1, v.sd2, v.sd3, v.sd4, v.ed1, v.ed2]))
             if graficos.get(sitio):
                 print len(graficos[sitio]), "graficos"
                 for g in graficos[sitio].values():
-                    g.callRemote("nuevoValor", u",".join([v.ea1, v.ea2, v.ea3, v.ea4, v.c1, v.c2,
-                                                      v.c3, v.c4, v.b1, v.b2, v.b3, v.b4]))
+                    g.callRemote("nuevoValor", u",".join([v.ea1, v.ea2, v.ea3, v.ea4, v.re1, v.re2,
+                                                      v.re3, v.re4, v.sd1, v.sd2, v.sd3, v.sd4]))
 
     def process_write_reg(self, disp, body):
         reg = body[2:]
@@ -185,7 +192,7 @@ class TModBusFactory(Factory):
         self.lc.start(15)        
 
 factory = TModBusFactory()
-reactor.listenTCP(8007, factory)
+reactor.listenTCP(9007, factory)
 #reactor.listenTCP(8017, factory)
 
 from twisted.conch import manhole, manhole_ssh
@@ -202,7 +209,7 @@ def getManholeFactory(namespace, **passwords):
     f = manhole_ssh.ConchFactory(p)
     return f
 
-reactor.listenTCP(8822, getManholeFactory(globals(), admin='aaa'))
+reactor.listenTCP(9822, getManholeFactory(globals(), admin='aaa'))
 
 # Terminal de comandos
 terminales = {}
@@ -391,7 +398,7 @@ pubKeyString, privKeyString = getRSAKeys()
 sshFactory.publicKeys = {'ssh-rsa': keys.Key.fromString(pubKeyString)}
 sshFactory.privateKeys = {'ssh-rsa': keys.Key.fromString(privKeyString)}
 
-reactor.listenTCP(8222, sshFactory)
+reactor.listenTCP(9222, sshFactory)
 
 # Nevow / Athena
 
@@ -402,16 +409,19 @@ from nevow.athena import LivePage, LiveElement, expose
 from nevow.loaders import xmlfile
 
 lectores = {}
-# RETORNAR NONE PARA 404
+
 # RENDERHTTP se llama cuando se consumieron todos los segmentos
 class TempElement(LiveElement):
         
-    docFactory = xmlfile(sibpath(__file__, 'ter.html'))
+    #docFactory = xmlfile(sibpath(__file__, 'ter.html'))
+    s = render_to_string('tero.html', {}).encode('utf-8')   # BIEN AQUI
+    docFactory = loaders.xmlstr(s)
     jsClass = u'TempDisplay.TempWidget'
 
-    def __init__(self, sitio=''):
+    def __init__(self, sitio='', robot=''):
         self.sitio = sitio
-        self.client = [c for c in factory.clients.values() if c['sitio'].ccc == sitio.ccc][0]['self']
+        self.robot = robot
+        self.client = [c for c in factory.clients.values() if c['sitio'].ccc == robot.sitio.ccc][0]['self']
         super(TempElement, self).__init__()
 
     def read(self):
@@ -444,8 +454,9 @@ class TerPage(LivePage):
         T.head(render=T.directive('liveglue')),
         T.body(render=T.directive('myElement'))])
 
-    def __init__(self, sitio='', *args, **kwargs):
+    def __init__(self, sitio='', robot='', *args, **kwargs):
         self.sitio = sitio
+        self.robot = robot
         LivePage.__init__ (self, *args, **kwargs)
         
     def beforeRender(self, ctx):
@@ -455,10 +466,10 @@ class TerPage(LivePage):
     def disconn(self, reason):
         if lectores.get(self.sitio):
             if id(self.element) in lectores[self.sitio].keys():
-                del lectores[id(self.element)]
+                del lectores[self.sitio][id(self.element)]
 
     def render_myElement(self, ctx, data):
-        self.element = TempElement(self.sitio)
+        self.element = TempElement(self.sitio, self.robot)
         self.element.setFragmentParent(self)
         return ctx.tag[self.element]
 
@@ -504,7 +515,7 @@ class GraphPage(LivePage):
     def disconn(self, reason):
         if graficos.get(self.sitio):
             if id(self.element) in graficos[self.sitio].keys():
-                del graficos[id(self.element)]
+                del graficos[self.sitio][id(self.element)]
 
     def render_myElement(self, ctx, data):
         request = inevow.IRequest(ctx)
@@ -596,10 +607,15 @@ class SitioPage(rend.Page):
     
     def __init__ (self, name, *args, **kwargs):
         self.name = name    # VERIFICAR QUE SEA UN SITIO DE LA BD Y QUE ESTE ONLINE
-        self.sitio = Sitio.objects.get(ccc=self.name)
+        try:
+            self.sitio = Sitio.objects.get(ccc=self.name)
+        except Sitio.DoesNotExist:
+            self.sitio = None
         rend.Page.__init__ ( self, *args, **kwargs )
         
     def renderHTTP(self, ctx):
+        if not self.sitio:
+            return ''
         return render_to_string('sitio.html', {'sitio': self.sitio }).encode('utf-8')
         
     def childFactory(self, ctx, name):
@@ -612,29 +628,38 @@ class RobotPage(rend.Page):
     def __init__ (self, name, sitio, *args, **kwargs):
         self.name = name
         self.sitio = sitio
+        try:
+            self.robot = Robot.objects.get(sitio=self.sitio, mbdir=self.name)
+        except Robot.DoesNotExist:
+            self.robot = None
+        
         rend.Page.__init__ ( self, *args, **kwargs )
         
     def renderHTTP(self, ctx):
-        print "generando pagina" * 5
-        robot = Robot.objects.get(sitio=self.sitio, mbdir=self.name)
-        count = Valor.objects.filter(robot=robot).count()
-        print "COUNT", count
-        valores = Valor.objects.filter(robot=robot)[count -20:count]
-        return render_to_string('robot.html', {'sitio': self.sitio, 'robot': robot, 'valores': valores }).encode('utf-8')
-        
-    def childFactory(self, ctx, name):
-        return None
+        if self.robot:
+            try:            
+                count = Valor.objects.filter(robot=robot).count()
+            except Valor.DoesNotExist:
+                return ''
+            valores = Valor.objects.filter(robot=robot)[count -20:count]
+            return render_to_string('robot.html', {'sitio': self.sitio, 'robot': robot, 'valores': valores }).encode('utf-8')
+        else:
+            return ''
+                    
+    def child_grafica(self, ctx):
+        return GraphPage(sitio=self.sitio, robot=self.robot)
+
+    def child_control(self, ctx):
+        return TerPage(sitio=self.sitio, robot=self.robot)
         
 from nevow import appserver
 site = appserver.NevowSite(IndexPage())
-reactor.listenTCP(8009, site)
-reactor.listenTCP(8080, site)
+reactor.listenTCP(9009, site)
+reactor.listenTCP(9080, site)
 
 # DB Pool
-dbpool = adbapi.ConnectionPool('MySQLdb', host='10.0.0.10', port=3306, db='kimera_kimera', user='kimera', passwd='kimera')
+#dbpool = adbapi.ConnectionPool('MySQLdb', host='10.0.0.10', port=3306, db='kimera_kimera', user='kimera', passwd='kimera')
 
-# Django Templates
-from django.template.loader import render_to_string
 #from django.template import Template, Context
 #rendered = render_to_string('my_template.html', { 'foo': 'bar' })
 #print rendered
