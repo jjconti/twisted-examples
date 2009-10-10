@@ -1,0 +1,71 @@
+<div xmlns:nevow="http://nevow.com/ns/nevow/0.1"
+    xmlns:athena="http://divmod.org/ns/athena/0.7"
+    nevow:render="liveElement">
+    
+    <h2>Control Remoto: {{ robot.nombre }} en <a href="/sitios/{{ robot.sitio }}/">{{ robot.sitio }}</a></h2>
+    <form name="terElement">
+        <athena:handler event="onsubmit" handler="doRead" />
+        <input name="botonLeer" type="submit" value="Leer" />
+    </form>
+    
+<table style="width:100%">
+  <tbody>
+    <tr>
+      <td style="width:50%; vertical-align: top">
+      
+        <div name="entradas-analogicas">
+        <h3>Entradas Analógicas</h3>
+        {% for ea in entradasanalogicas %}
+        <span>{{ ea.medida.texto }}:</span><span name="{{ ea.tipoio.campo }}"></span><br/>
+        {% endfor %}
+        </div>
+      
+      </td>
+      <td style="width:50%; vertical-align: top">
+      
+        <div name="registros">
+        <h3>Registros</h3>
+        <form name="terElementChange">
+            <athena:handler event="onsubmit" handler="doChange" />
+        {% for re in registros %}
+        <span>
+        <input type="radio" name="consignas" value="{{ forloop.counter }}" 
+        {% if forloop.first %}checked="checked"{% endif %} />
+        {{ re.medida.texto }}:</span><span name="{{ re.tipoio.campo }}"></span><br/>
+        {% endfor %}
+        <div align="right">    
+        <input type="text" name="valor_consigna" size="2" />
+        <input type="submit" value="Cambiar" />
+        </div>
+        </form>                
+        </div>      
+         
+      </td>
+    </tr>
+    <tr>
+      <td style="width:50%; vertical-align: top">
+
+        <div name="entradasdigitales">
+        <h3>Entradas Digitales</h3>
+        {% for ed in entradasdigitales %}
+        <span>{{ ed.medida.texto }}:</span><span name="{{ ed.tipoio.campo }}"></span><br/>
+        {% endfor %}
+        </div>          
+      
+      </td>
+      <td style="width:50%; vertical-align: top">
+
+        <div name="salidasdigitales">
+        <h3>Salidas Digitales</h3>
+        {% for sd in salidasdigitales %}
+        <span>{{ sd.medida.texto }}:</span><span name="{{ sd.tipoio.campo }}"></span><br/>
+        {% endfor %}
+        </div>
+              
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+</div>

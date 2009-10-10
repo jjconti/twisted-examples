@@ -25,6 +25,7 @@ class Magnitud(models.Model):
 class Medida(models.Model):
     id = models.IntegerField(primary_key=True, unique=True)
     texto = models.CharField(max_length=240, blank=True)
+
     class Meta:
         db_table = u'medidas'
 
@@ -52,9 +53,23 @@ class Sitio(models.Model):
 class RobotTipoIO(models.Model):
     id = models.IntegerField(primary_key=True, unique=True)
     nombre = models.CharField(max_length=60, blank=True)
+    campo = models.CharField(max_length=10, blank=True) # campo de la tabla Valores
+    
     class Meta:
         db_table = u'robots_tipoio'
 
+    def esEA(self):
+        return self.nombre.startswith('Entrada Analogica')
+        
+    def esRE(self):
+        return self.nombre.startswith('Registro')
+
+    def esSD(self):
+        return self.nombre.startswith('Salida Digital')
+
+    def esED(self):
+        return self.nombre.startswith('Entrada Digital')
+        
     def __unicode__(self):
         return self.nombre
         
@@ -62,6 +77,7 @@ class RobotTipo(models.Model):
     id = models.IntegerField(primary_key=True, unique=True)
     nombre = models.CharField(max_length=120, blank=True)
     mascara = models.CharField(max_length=200, blank=True)
+        
     class Meta:
         db_table = u'robots_tipos'
         
@@ -84,7 +100,7 @@ class Robot(models.Model):
 class RobotConfig(models.Model):
     id = models.IntegerField(primary_key=True, unique=True)
     robot = models.ForeignKey(Robot, db_column='robot')
-    tipoio = models.ForeignKey(RobotTipoIO, null=True, db_column='tipoio', blank=True)
+    tipoio = models.ForeignKey(RobotTipoIO, null=True, db_column='tipoio', blank=True)   
     magnitud = models.ForeignKey(Magnitud, null=True, db_column='magnitud', blank=True)
     medida = models.ForeignKey(Medida, null=True, db_column='medida', blank=True)
     class Meta:

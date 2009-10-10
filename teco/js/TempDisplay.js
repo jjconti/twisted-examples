@@ -1,5 +1,6 @@
 // import Nevow.Athena
 // import jquery
+// import json2
 
 TempDisplay.TempWidget = Nevow.Athena.Widget.subclass('TempDisplay.TempWidget');
 
@@ -9,21 +10,8 @@ TempDisplay.TempWidget.methods(
         
         self.tempWidget = self.nodeByAttribute('name', 'terElement');
 
-        self.tempSalaTxt = document.createTextNode('');
-        self.tempSala = self.nodeByAttribute('name', 'temp_sala')
-        self.tempSala.appendChild(self.tempSalaTxt);
-
-        self.tempRetornoTxt = document.createTextNode('');
-        self.tempRetorno = self.nodeByAttribute('name', 'temp_retorno');
-        self.tempRetorno.appendChild(self.tempRetornoTxt);
-
-        self.tempExteriorTxt = document.createTextNode('');
-        self.tempExterior = self.nodeByAttribute('name', 'temp_exterior');
-        self.tempExterior.appendChild(self.tempExteriorTxt);
-        
-        self.todoTxt = document.createTextNode('');
-        self.todo = self.nodeByAttribute('name', 'todo');
-        self.todo.appendChild(self.todoTxt);
+        self.nodos = {};
+     
     },
 
     function doRead(self) {
@@ -46,6 +34,26 @@ TempDisplay.TempWidget.methods(
         var cuanto = $("[name='valor_consigna']").val();
         self.callRemote("change", cual, cuanto);
         return false;
+    },
+    
+    function actualizarValor(self, id, valor) {
+        nodo =  self.nodeByAttribute('name', id);
+        if (id in self.nodos) {
+           self.nodos[id].removeChild(self.nodos[id].lastChild);
+           self.nodos[id].appendChild(document.createTextNode(' ' + valor));
+        } else {
+            nodo.appendChild(document.createTextNode(' ' + valor));
+            self.nodos[id] = nodo;
+        };
+        
+    },
+    
+    function actualizarValores2(self, data) {
+        dict = JSON.parse(data);
+        $.each(dict, function(k,v) {
+            self.actualizarValor(k, v);
+        });
+
     },
     
     function actualizarValores(self, data) {

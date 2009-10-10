@@ -16,6 +16,7 @@ from twisted.internet.task import LoopingCall
 
 from twisted.internet.threads import deferToThread
 
+import re
 # DB Django
 import sys
 
@@ -26,6 +27,9 @@ from dproj.piel.models import *
 # Django Templates
 from django.template.loader import render_to_string
 
+#JSON Encoder
+import json
+jsonencoder = json.JSONEncoder(skipkeys=True, ensure_ascii=False)
 
 class TModBus(LineOnlyReceiver):
 
@@ -109,7 +113,6 @@ class TModBus(LineOnlyReceiver):
     def process_id(self, disp, body):
         print "Dispositivo %s: %s" % (disp, body)
         
-    import re
     mascaras = {}
     for r in RobotTipo.objects.all():
         print r.mascara
@@ -130,11 +133,17 @@ class TModBus(LineOnlyReceiver):
 
             sitio = factory.clients[id(self)]['sitio']
             
+            d.pop('robot')
             if lectores.get(sitio):
                 print len(lectores[sitio]), "lectores"
                 for l in lectores[sitio].values():
-                    l.callRemote('actualizarValores', u','.join([v.ea1, v.ea2, v.ea3, v.ea4, v.re1, v.re2,
-                                                                 v.re3, v.re4, v.sd1, v.sd2, v.sd3, v.sd4, v.ed1, v.ed2]))
+                    #l.callRemote('actualizarValores', u','.join([v.ea1, v.ea2, v.ea3, v.ea4, v.re1, v.re2,
+                    #                                             v.re3, v.re4, v.sd1, v.sd2, v.sd3, v.sd4, v.ed1, v.ed2]))
+                    j = unicode(jsonencoder.encode(d))
+                    print "Enviando al browser", j
+                    l.callRemote('actualizarValores2', j)
+                    #l.callRemote('actualizarValores2', u'{"ea1": 1}')
+                    
             if graficos.get(sitio):
                 print len(graficos[sitio]), "graficos"
                 for g in graficos[sitio].values():
@@ -413,15 +422,24 @@ lectores = {}
 # RENDERHTTP se llama cuando se consumieron todos los segmentos
 class TempElement(LiveElement):
         
-    #docFactory = xmlfile(sibpath(__file__, 'ter.html'))
-    s = render_to_string('tero.html', {}).encode('utf-8')   # BIEN AQUI
-    docFactory = loaders.xmlstr(s)
     jsClass = u'TempDisplay.TempWidget'
 
     def __init__(self, sitio='', robot=''):
         self.sitio = sitio
         self.robot = robot
         self.client = [c for c in factory.clients.values() if c['sitio'].ccc == robot.sitio.ccc][0]['self']
+        
+        configuracion = robot.robotconfig_set.all()
+        entradasanalogicas = [c for c in configuracion if c.tipoio.esEA()]
+        registros = [c for c in configuracion if c.tipoio.esRE()]
+        salidasdigitales = [c for c in configuracion if c.tipoio.esSD()]
+        entradasdigitales = [c for c in configuracion if c.tipoio.esED()]                        
+        s = render_to_string('tero.html', {'robot': self.robot, 
+                                           'entradasanalogicas': entradasanalogicas,
+                                           'registros': registros,
+                                           'salidasdigitales': salidasdigitales,
+                                           'entradasdigitales': entradasdigitales}).encode('utf-8')
+        self.docFactory = loaders.xmlstr(s)
         super(TempElement, self).__init__()
 
     def read(self):
@@ -450,6 +468,9 @@ class TempElement(LiveElement):
 
     
 class TerPage(LivePage):
+
+    addSlash = True
+    
     docFactory = loaders.stan(T.html[
         T.head(render=T.directive('liveglue')),
         T.body(render=T.directive('myElement'))])
@@ -480,11 +501,13 @@ graficos = {}
 
 class GraphElement(LiveElement):
 
-    docFactory = xmlfile(sibpath(__file__, 'graph.html'))
     jsClass = u'GraphDisplay.GraphWidget'
 
-    def __init__(self, sitio=''):
+    def __init__(self, sitio='', robot=''):
         self.sitio = sitio
+        self.robot = robot
+        s = render_to_string('graph.html', {}).encode('utf-8')
+        self.docFactory = loaders.xmlstr(s)        
         super(GraphElement, self).__init__()
         
     def start(self):
@@ -500,12 +523,16 @@ class GraphElement(LiveElement):
     start = expose(start)
     
 class GraphPage(LivePage):
+
+    addSlash = True
+    
     docFactory = loaders.stan(T.html[
         T.head(render=T.directive('liveglue')),
         T.body(render=T.directive('myElement'))])
     
-    def __init__(self, sitio='', *args, **kwargs):
+    def __init__(self, sitio='', robot= '', *args, **kwargs):
         self.sitio = sitio
+        self.robot = robot
         LivePage.__init__ (self, *args, **kwargs)
         
     def beforeRender(self, ctx):
@@ -520,7 +547,7 @@ class GraphPage(LivePage):
     def render_myElement(self, ctx, data):
         request = inevow.IRequest(ctx)
         print request.prepath
-        self.element = GraphElement(self.sitio)
+        self.element = GraphElement(self.sitio, self.robot)
         self.element.setFragmentParent(self)
         return ctx.tag[self.element]
 
@@ -564,19 +591,15 @@ class TodoPage(LivePage):
     def childFactory(self, ctx, name):
         return TodoPage(name)
 
-class EjPage(rend.Page):
-
-    def renderHTTP(self, ctx):
-        s = render_to_string('my_template.html', { 'foo': 'bar' })
-        return s.encode('utf-8')
         
 class IndexPage(rend.Page):
+
 
     def __init__ ( self, *args, **kwargs ):
         rend.Page.__init__ ( self, *args, **kwargs )
 
     def renderHTTP(self, ctx):
-        return '<a href="/sitios">sitios</a>'
+        return '<a href="/sitios/">sitios</a>'
 
     def child_sitios(self, ctx):
         return SitiosPage()
@@ -638,11 +661,13 @@ class RobotPage(rend.Page):
     def renderHTTP(self, ctx):
         if self.robot:
             try:            
-                count = Valor.objects.filter(robot=robot).count()
+                count = Valor.objects.filter(robot=self.robot).count()
             except Valor.DoesNotExist:
                 return ''
-            valores = Valor.objects.filter(robot=robot)[count -20:count]
-            return render_to_string('robot.html', {'sitio': self.sitio, 'robot': robot, 'valores': valores }).encode('utf-8')
+            valores = Valor.objects.filter(robot=self.robot)[count -20:count]
+            return render_to_string('robot.html', {'sitio': self.sitio,
+                                                   'robot': self.robot, 
+                                                   'valores': valores }).encode('utf-8')
         else:
             return ''
                     

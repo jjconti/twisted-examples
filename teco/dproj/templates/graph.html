@@ -1,0 +1,13 @@
+<div xmlns:nevow="http://nevow.com/ns/nevow/0.1"
+    xmlns:athena="http://divmod.org/ns/athena/0.7"
+    nevow:render="liveElement">
+    <h2>Grafica</h2>
+    <p name="choices">Mostrar:</p>
+    <div name="placeholder" style="width:750px;height:250px"></div>
+    <div name="placeholder2" style="width:750px;height:200px"></div>
+    <form name="graphElement">
+        <athena:handler event="onsubmit" handler="doStart" />
+        <input name="botonGraficar" type="submit" value="Graficar" />
+    </form>
+</div>    
+

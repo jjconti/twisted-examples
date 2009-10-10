@@ -8,6 +8,7 @@ GraphDisplay.GraphWidget = Nevow.Athena.Widget.subclass('GraphDisplay.GraphWidge
 GraphDisplay.GraphWidget.methods(
     
     function __init__(self, node) {
+        alert(node)
     
         GraphDisplay.GraphWidget.upcall(self, "__init__", node);
          self.tick = 0;
