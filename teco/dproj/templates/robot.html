@@ -9,6 +9,24 @@
 <li><a href="control/">Control Remoto</a></li>
 <li><a href="grafica/">Gr&aacute;fica en tiempo real</a></li>
 </ul>
+
+<h2>Configuraci&oacute;n del robot</h2>
+<h3>Entradas Analógicas</h3>
+{% for c in robot.config_dict.entradasanalogicas %}
+<span>{{ c.medida.texto }} ({{ c.tipoio.campo }})</span>{% if c.magnitud.uni %} en {{ c.magnitud.uni }}{% endif %}<br/>
+{% endfor %}
+<h3>Registros</h3>
+{% for c in robot.config_dict.registros %}
+<span>{{ c.medida.texto }} ({{ c.tipoio.campo }})</span>{% if c.magnitud.uni %} en {{ c.magnitud.uni }}{% endif %}<br/>
+{% endfor %}
+<h3>Entradas Digitales</h3>
+{% for c in robot.config_dict.entradasdigitales %}
+<span>{{ c.medida.texto }} ({{ c.tipoio.campo }})</span>{% if c.magnitud.uni %} en {{ c.magnitud.uni }}{% endif %}<br/>
+{% endfor %}
+<h3>Salidas Digitales</h3>
+{% for c in robot.config_dict.salidasdigitales %}
+<span>{{ c.medida.texto }} ({{ c.tipoio.campo }})</span>{% if c.magnitud.uni %} en {{ c.magnitud.uni }}{% endif %}<br/>
+{% endfor %}
 <h2>&Uacute;ltimos valores recibidos</h2>
 <table border="1">
 <tr><th>ea1</th><th>ea2</th><th>ea3</th><th>ea4</th><th>re1</th><th>re2</th><th>re3</th><th>re4</th>

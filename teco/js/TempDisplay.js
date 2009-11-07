@@ -78,8 +78,8 @@ TempDisplay.TempWidget.methods(
             self.enableChangeFlag = false;
         }
         // actualizar valores
-        dict = JSON.parse(data);
-        $.each(dict, function(k,v) {
+        data = JSON.parse(data);
+        $.each(data, function(k,v) {
             self.actualizarValor(k, v);
         });
 

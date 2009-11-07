@@ -97,6 +97,32 @@ class Robot(models.Model):
     def __unicode__(self):
         return u"%s en %s" % (self.mbdir, self.sitio)
 
+    def config_dict(self):
+
+        configuracion = self.robotconfig_set.all()
+        entradasanalogicas = [c for c in configuracion if c.tipoio.esEA()]
+        registros = [c for c in configuracion if c.tipoio.esRE()]
+        salidasdigitales = [c for c in configuracion if c.tipoio.esSD()]
+        entradasdigitales = [c for c in configuracion if c.tipoio.esED()]
+        return {'entradasanalogicas': entradasanalogicas,
+                'registros': registros,
+                'salidasdigitales': salidasdigitales,
+                'entradasdigitales': entradasdigitales
+               }
+
+    def confignames_dict(self):
+    
+        configuracion = self.robotconfig_set.all()
+        entradasanalogicas = [c.tipoio.campo for c in configuracion if c.tipoio.esEA()]
+        registros = [c.tipoio.campo for c in configuracion if c.tipoio.esRE()]
+        salidasdigitales = [c.tipoio.campo for c in configuracion if c.tipoio.esSD()]
+        entradasdigitales = [c.tipoio.campo for c in configuracion if c.tipoio.esED()]
+        return {u'entradasanalogicas': entradasanalogicas,
+                u'registros': registros,
+                u'salidasdigitales': salidasdigitales,
+                u'entradasdigitales': entradasdigitales
+               }
+               
 class RobotConfig(models.Model):
     id = models.IntegerField(primary_key=True, unique=True)
     robot = models.ForeignKey(Robot, db_column='robot')

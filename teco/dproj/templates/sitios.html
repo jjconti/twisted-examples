@@ -8,7 +8,7 @@
     {% for c in clientes %}
     <h2> {{ c.sitio.nombre }}:  </h2>
         {% for r in c.sitio.robot_set.all %}
-        <a href="/sitios/{{ c.sitio.ccc }}/{{ r.mbdir }}/control/">{{ r.nombre }}</a> - 
+        <a href="/sitios/{{ c.sitio.ccc }}/{{ r.mbdir }}/">{{ r.nombre }}</a><br/> 
         {% endfor %}
     {% endfor %}
     </div>
