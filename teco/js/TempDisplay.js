@@ -11,7 +11,7 @@ TempDisplay.TempWidget.methods(
         self.tempWidget = self.nodeByAttribute('name', 'terElement');
 
         self.nodos = {};
-     
+        self.enableChangeFlag = false;
     },
 
     function doRead(self) {
@@ -25,12 +25,8 @@ TempDisplay.TempWidget.methods(
             boton.attr('value', "Leer");
         }
 
-        // si el boton Cambiar esta desactivado, activarlo
-        var boton = $("[name=botonCambiar]");
-        boton.removeAttr('disabled');
-        var campo = $("[name=valor_consigna]");
-        campo.removeAttr('disabled'); 
         return false;
+
     },
 
     function doChange(self) {
@@ -39,13 +35,24 @@ TempDisplay.TempWidget.methods(
         boton.attr('disabled', 'disabled');
         var campo = $("[name=valor_consigna]");
         campo.attr('disabled', 'disabled');         
+        $("[name=changing_img]").show();
         // ejecuta funcion change en el servidor
-        //var cual = $("input[name='consignas']:checked").val();
-        //var cuanto = $("[name='valor_consigna']").val();
-        //self.callRemote("change", cual, cuanto);
+        var cual = $("input[name='consignas']:checked").val();
+        var cuanto = $("[name='valor_consigna']").val();
+        self.callRemote("change", cual, cuanto);
         return false;
     },
     
+    function enableChange(self) {
+        self.enableChangeFlag = true;            
+    },
+    
+    function errorMesg(self, msg) {
+    
+        // si el boton Cambiar esta desactivado, activarlo
+        $("[name=error_msg]").val(msg);
+    },
+        
     function actualizarValor(self, id, valor) {
         nodo =  self.nodeByAttribute('name', id);
         if (id in self.nodos) {
@@ -59,6 +66,18 @@ TempDisplay.TempWidget.methods(
     },
     
     function actualizarValores2(self, data) {
+        
+        if (self.enableChangeFlag) {
+            // si el boton Cambiar esta desactivado, activarlo
+            var boton = $("[name=botonCambiar]");
+            boton.removeAttr('disabled');
+            var campo = $("[name=valor_consigna]");
+            campo.removeAttr('disabled'); 
+            $("[name=valor_consigna]").val('');
+            $("[name=changing_img]").hide();
+            self.enableChangeFlag = false;
+        }
+        // actualizar valores
         dict = JSON.parse(data);
         $.each(dict, function(k,v) {
             self.actualizarValor(k, v);

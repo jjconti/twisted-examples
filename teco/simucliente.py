@@ -90,7 +90,7 @@ class CModBusFactory(ClientFactory):
     def clientConnectionFailed(self, connector, reason):
         print 'Connection failed. Reason:', reason
 
-reactor.connectTCP('localhost', 9007, CModBusFactory())
+reactor.connectTCP('localhost', 8007, CModBusFactory())
 reactor.run()
 
 

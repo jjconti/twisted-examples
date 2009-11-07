@@ -20,7 +20,7 @@ import re
 # DB Django
 import sys
 
-#sys.path = sys.path + ['/home/juanjo/python/twisted/teco/dproj']
+sys.path = sys.path + ['/home/juanjo/python/twisted/teco/dproj']
 sys.path = sys.path + ['C:\Documents and Settings\Teco2006\Escritorio\line\dproj']
 from dproj.piel.models import *
 #print len(Robot.objects.filter(nombre__startswith='juanjo'))
@@ -45,6 +45,7 @@ class TModBus(LineOnlyReceiver):
         
     def connectionMade(self):
         #self.factory.clients.append(self)
+        self.state = IDLE
         self.factory.clients[id(self)] = {'self': self, 'sitio': None}
         self.peer = self.transport.getPeer()
         print "Nuevo cliente: %s:%d" % (self.peer.host, self.peer.port) #LOG
@@ -152,22 +153,39 @@ class TModBus(LineOnlyReceiver):
                 for g in graficos[sitio].values():
                     g.callRemote("nuevoValor", u",".join([v.ea1, v.ea2, v.ea3, v.ea4, v.re1, v.re2,
                                                       v.re3, v.re4, v.sd1, v.sd2, v.sd3, v.sd4]))
-
+            
+            self.state = IDLE
+            
     def process_write_reg(self, disp, body):
-        reg = body[2:]
-        err = body[2:4]
+        robot = factory.clients[id(self)]['sitio'].robot_set.get(mbdir=disp)
+        sitio = factory.clients[id(self)]['sitio']
+
+        #011100
+        reg = int(body[:2])
+        val = int(body[2:4])
+        err = int(body[4:6])
         if err == NOERR:
             pass
         elif err == ERRREG:
             print "Error en el registro %s" % (reg,)
         elif err == ERRVAL:
             print "Error en el valor %s" % (val,)
-                        
+
+        if lectores.get(robot):
+            for l in lectores[robot].values():
+                if err == NOERR:
+                    print "sin errores al escribir elr egistro"*2
+                    l.callRemote('enableChange')
+                if err == ERRREG:
+                    l.callRemote('errorMesg', 'Error de registro')                        
+                if err == ERRVAL:
+                    l.callRemote('errorMesg', 'Error en el valor')                        
     def ask_id(self, disp):
         self.sendLine(':%02d%d%02d' % (disp, ID, LR))
     
     def ask_read(self, disp):
         self.sendLine(':%02d%d%02d' % (disp, RD, LR))
+        self.state = WAITING
 
     def ask_write_reg(self, disp, reg, val):
         print "Se cambiara el reg", reg, "valor", val
@@ -423,7 +441,7 @@ reactor.listenTCP(8222, sshFactory)
 # Nevow / Athena
 
 from twisted.python.util import sibpath
-from nevow import flat, rend, athena, loaders, tags as T
+from nevow import static, flat, rend, athena, loaders, tags as T
 from nevow import inevow
 from nevow.athena import LivePage, LiveElement, expose
 from nevow.loaders import xmlfile
@@ -631,6 +649,9 @@ class IndexPage(rend.Page):
     def child_todo(self, ctx):
         return TodoPage()
 
+    def child_imgs(self, ctx):
+            return static.File(os.path.join(ROOT_PATH, 'imgs')) 
+            
 class SitiosPage(rend.Page):
 
     addSlash = True
@@ -693,8 +714,8 @@ class RobotPage(rend.Page):
         return GraphPage(sitio=self.sitio, robot=self.robot)
 
     def child_control(self, ctx):
-        return TerPage(sitio=self.sitio, robot=self.robot)
-        
+        return TerPage(sitio=self.sitio, robot=self.robot)     
+            
 from nevow import appserver
 site = appserver.NevowSite(IndexPage())
 reactor.listenTCP(8009, site)

@@ -14,3 +14,7 @@ ERRREG = 91
 ERRVAL = 92
 
 LOGDIR = '/home/juanjo/python/twisted/teco/logs'
+
+IDLE, WAITING = range(2)
+
+ROOT_PATH = '/home/juanjo/python/twisted/teco/'

@@ -33,9 +33,11 @@
         {% if forloop.first %}checked="checked"{% endif %} />
         {{ re.medida.texto }}:</span><span style="color:#339900; font-weight: bold" name="{{ re.tipoio.campo }}"></span> {{ re.magnitud.uni }}<br/>
         {% endfor %}
-        <div align="right">    
+        <div align="right">
+        <img name="changing_img" align="middle" src="/imgs/ajax-loader-ball.gif" alt="loading" style="display: none"/>    
         <input type="text" name="valor_consigna" size="2" />
         <input name="botonCambiar" type="submit" value="Cambiar" />
+        <span name="error_msg"></span>
         </div>
         </form>                
         </div>      
