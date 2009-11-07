@@ -20,15 +20,19 @@ import re
 # DB Django
 import sys
 
-sys.path = sys.path + ['/home/juanjo/python/twisted/teco/dproj']
-#sys.path = sys.path + ['C:\Documents and Settings\Teco2006\Escritorio\line\dproj']
+#sys.path = sys.path + ['/home/juanjo/python/twisted/teco/dproj']
+sys.path = sys.path + ['C:\Documents and Settings\Teco2006\Escritorio\line\dproj']
 from dproj.piel.models import *
 #print len(Robot.objects.filter(nombre__startswith='juanjo'))
 # Django Templates
 from django.template.loader import render_to_string
 
 #JSON Encoder
-import json
+try:
+    import json
+except:
+    import simplejson as json
+
 jsonencoder = json.JSONEncoder(skipkeys=True, ensure_ascii=False)
 
 class TModBus(LineOnlyReceiver):
@@ -118,7 +122,6 @@ class TModBus(LineOnlyReceiver):
         print r.mascara
         mascaras[r.id] = re.compile(str(r.mascara))
     def process_read(self, disp, body):
-        
         robot = factory.clients[id(self)]['sitio'].robot_set.get(mbdir=disp)
         m = TModBus.mascaras[robot.tipo.id].match(body)
         if m:
@@ -134,9 +137,9 @@ class TModBus(LineOnlyReceiver):
             sitio = factory.clients[id(self)]['sitio']
             
             d.pop('robot')
-            if lectores.get(sitio):
-                print len(lectores[sitio]), "lectores"
-                for l in lectores[sitio].values():
+            if lectores.get(robot):
+                print len(lectores[robot]), "lectores"
+                for l in lectores[robot].values():
                     #l.callRemote('actualizarValores', u','.join([v.ea1, v.ea2, v.ea3, v.ea4, v.re1, v.re2,
                     #                                             v.re3, v.re4, v.sd1, v.sd2, v.sd3, v.sd4, v.ed1, v.ed2]))
                     j = unicode(jsonencoder.encode(d))
@@ -167,6 +170,7 @@ class TModBus(LineOnlyReceiver):
         self.sendLine(':%02d%d%02d' % (disp, RD, LR))
 
     def ask_write_reg(self, disp, reg, val):
+        print "Se cambiara el reg", reg, "valor", val
         line = ':%02d%d%02d%02d%02d' % (disp, WR, reg, val, LR)
         print "Enviando: %s" % line
         self.sendLine(line)
@@ -174,11 +178,12 @@ class TModBus(LineOnlyReceiver):
 
 class TModBusFactory(Factory):
     protocol = TModBus
+    writeBuffer = {}    # clave prolocolo, valor triplete para ask_write_reg
     
     def paso(self):
         print "Clientes actualmente conectados: ", len(self.clients)
         for k,c in self.clients.items():
-            if k in terminales: # en terminales la clave es id(cliente)
+            if k in terminales: # si se esta usando la terminal, no consultar
                 continue
             n = 1
             if c['sitio']:
@@ -189,6 +194,12 @@ class TModBusFactory(Factory):
                         cl['self'].ask_read(r)
                     reactor.callLater(5*n,f, rmbdir, c)
                     n += 1
+            if k in self.writeBuffer:    # hay elementos para escribir en este sitio
+                print "Calendarizando escritura."
+                def f(cl, d, r, v):
+                    cl['self'].ask_write_reg(d, r, v)
+                reactor.callLater(0, f, c, *self.writeBuffer[k])
+                self.writeBuffer.pop(k)
                 
     def stopFactory(self):
         self.lc.stop()    
@@ -201,8 +212,8 @@ class TModBusFactory(Factory):
         self.lc.start(15)        
 
 factory = TModBusFactory()
-reactor.listenTCP(9007, factory)
-#reactor.listenTCP(8017, factory)
+#reactor.listenTCP(9007, factory)
+reactor.listenTCP(8007, factory)
 
 from twisted.conch import manhole, manhole_ssh
 from twisted.cred import portal, checkers 
@@ -218,7 +229,7 @@ def getManholeFactory(namespace, **passwords):
     f = manhole_ssh.ConchFactory(p)
     return f
 
-reactor.listenTCP(9822, getManholeFactory(globals(), admin='aaa'))
+reactor.listenTCP(8822, getManholeFactory(globals(), admin='aaa'))
 
 # Terminal de comandos
 terminales = {}
@@ -407,7 +418,7 @@ pubKeyString, privKeyString = getRSAKeys()
 sshFactory.publicKeys = {'ssh-rsa': keys.Key.fromString(pubKeyString)}
 sshFactory.privateKeys = {'ssh-rsa': keys.Key.fromString(privKeyString)}
 
-reactor.listenTCP(9222, sshFactory)
+reactor.listenTCP(8222, sshFactory)
 
 # Nevow / Athena
 
@@ -445,25 +456,32 @@ class TempElement(LiveElement):
     def read(self):
         print "Se apreto el boton read"
         # TODO: verificar que sea un sitio valido
-        if lectores.get(self.sitio):
-            if id(self) in lectores[self.sitio].keys():
-                del lectores[self.sitio][id(self)]
+        if lectores.get(self.robot):
+            if id(self) in lectores[self.robot].keys():
+                del lectores[self.robot][id(self)]
             else:
-                lectores[self.sitio][id(self)] = self
+                lectores[self.robot][id(self)] = self
         else:
-            lectores[self.sitio] = {id(self): self}
+            lectores[self.robot] = {id(self): self}
     read = expose(read)
 
     def change(self, consigna, val):
         print "Se apreto el bonton change"
-        if consigna not in ['1', '2', '3', '4'] or len(val) > 2:   # una validacion
-            return
+        #if consigna not in ['1', '2', '3', '4'] or len(val) > 2:   # una validacion
+        #    print "La consigna puede ser sobre 1..4 y menor a 100."
+        #    return
         try:
             consigna = int(consigna)
             val = int(val)
+            disp = int(self.robot.mbdir)
         except:
+            print "Excepcion algun valor no era un entero compatible."
             return
-        self.client.ask_write_reg(1, consigna, val)
+        #self.client.ask_write_reg(disp, consigna, val)
+        # si no se despacho un cambio para un sitio y llega un nuevo
+        # cambio, se pisa al anterior.
+        print "llenando el buffer."
+        factory.writeBuffer[id(self.client)] = (disp, consigna, val)
     change = expose(change)
 
     
@@ -485,9 +503,9 @@ class TerPage(LivePage):
         d.addErrback(self.disconn)
 
     def disconn(self, reason):
-        if lectores.get(self.sitio):
-            if id(self.element) in lectores[self.sitio].keys():
-                del lectores[self.sitio][id(self.element)]
+        if lectores.get(self.robot):
+            if id(self.element) in lectores[self.robot].keys():
+                del lectores[self.robot][id(self.element)]
 
     def render_myElement(self, ctx, data):
         self.element = TempElement(self.sitio, self.robot)
@@ -570,8 +588,8 @@ class TodoPage(LivePage):
 
     def disconn(self, reason):
         
-        if lectores.get(self.sitio):
-            if id(self.element1) in lectores[self.sitio].keys():
+        if lectores.get(self.robot):
+            if id(self.element1) in lectores[self.robot].keys():
                 del lectores[id(self.element1)]
             
         if graficos.get(self.sitio):
@@ -679,8 +697,8 @@ class RobotPage(rend.Page):
         
 from nevow import appserver
 site = appserver.NevowSite(IndexPage())
-reactor.listenTCP(9009, site)
-reactor.listenTCP(9080, site)
+reactor.listenTCP(8009, site)
+reactor.listenTCP(8080, site)
 
 # DB Pool
 #dbpool = adbapi.ConnectionPool('MySQLdb', host='10.0.0.10', port=3306, db='kimera_kimera', user='kimera', passwd='kimera')

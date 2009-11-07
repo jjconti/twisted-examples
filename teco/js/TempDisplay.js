@@ -24,15 +24,25 @@ TempDisplay.TempWidget.methods(
         } else {
             boton.attr('value', "Leer");
         }
-                
+
+        // si el boton Cambiar esta desactivado, activarlo
+        var boton = $("[name=botonCambiar]");
+        boton.removeAttr('disabled');
+        var campo = $("[name=valor_consigna]");
+        campo.removeAttr('disabled'); 
         return false;
     },
 
     function doChange(self) {
+        // desactivar boton
+        var boton = $("[name=botonCambiar]");
+        boton.attr('disabled', 'disabled');
+        var campo = $("[name=valor_consigna]");
+        campo.attr('disabled', 'disabled');         
         // ejecuta funcion change en el servidor
-        var cual = $("input[name='consignas']:checked").val();
-        var cuanto = $("[name='valor_consigna']").val();
-        self.callRemote("change", cual, cuanto);
+        //var cual = $("input[name='consignas']:checked").val();
+        //var cuanto = $("[name='valor_consigna']").val();
+        //self.callRemote("change", cual, cuanto);
         return false;
     },
     

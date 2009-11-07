@@ -16,7 +16,7 @@
         <div name="entradas-analogicas">
         <h3>Entradas Analógicas</h3>
         {% for ea in entradasanalogicas %}
-        <span>{{ ea.medida.texto }}:</span><span style="color:#339900; font-weight: bold" name="{{ ea.tipoio.campo }}"></span><br/>
+        <span>{{ ea.medida.texto }}:</span><span style="color:#339900; font-weight: bold" name="{{ ea.tipoio.campo }}"></span> {{ ea.magnitud.uni }}<br/>
         {% endfor %}
         </div>
       
@@ -31,11 +31,11 @@
         <span>
         <input type="radio" name="consignas" value="{{ forloop.counter }}" 
         {% if forloop.first %}checked="checked"{% endif %} />
-        {{ re.medida.texto }}:</span><span style="color:#339900; font-weight: bold" name="{{ re.tipoio.campo }}"></span><br/>
+        {{ re.medida.texto }}:</span><span style="color:#339900; font-weight: bold" name="{{ re.tipoio.campo }}"></span> {{ re.magnitud.uni }}<br/>
         {% endfor %}
         <div align="right">    
         <input type="text" name="valor_consigna" size="2" />
-        <input type="submit" value="Cambiar" />
+        <input name="botonCambiar" type="submit" value="Cambiar" />
         </div>
         </form>                
         </div>      
@@ -48,7 +48,7 @@
         <div name="entradasdigitales">
         <h3>Entradas Digitales</h3>
         {% for ed in entradasdigitales %}
-        <span>{{ ed.medida.texto }}:</span><span style="color:#339900; font-weight: bold" name="{{ ed.tipoio.campo }}"></span><br/>
+        <span>{{ ed.medida.texto }}:</span><span style="color:#339900; font-weight: bold" name="{{ ed.tipoio.campo }}"></span> {{ ed.magnitud.uni }}<br/>
         {% endfor %}
         </div>          
       
@@ -58,7 +58,7 @@
         <div name="salidasdigitales">
         <h3>Salidas Digitales</h3>
         {% for sd in salidasdigitales %}
-        <span>{{ sd.medida.texto }}:</span><span style="color:#339900; font-weight: bold" name="{{ sd.tipoio.campo }}"></span><br/>
+        <span>{{ sd.medida.texto }}:</span><span style="color:#339900; font-weight: bold" name="{{ sd.tipoio.campo }}"></span> {{ sd.magnitud.uni }}<br/>
         {% endfor %}
         </div>
               
