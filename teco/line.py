@@ -148,10 +148,10 @@ class TModBus(LineOnlyReceiver):
                     l.callRemote('actualizarValores2', j)
                     #l.callRemote('actualizarValores2', u'{"ea1": 1}')
                     
-            if graficos.get(sitio):
-                print len(graficos[sitio]), "graficos"
+            if graficos.get(robot):
+                print len(graficos[robot]), "graficos"
                 j = unicode(jsonencoder.encode(d))
-                for g in graficos[sitio].values():
+                for g in graficos[robot].values():
                     #g.callRemote("nuevoValor", u",".join([v.ea1, v.ea2, v.ea3, v.ea4, v.re1, v.re2,
                     #                                  v.re3, v.re4, v.sd1, v.sd2, v.sd3, v.sd4]))
                     g.callRemote('nuevoValor2', j)
@@ -536,7 +536,8 @@ class GraphElement(LiveElement):
         self.sitio = sitio
         self.robot = robot
         d = robot.config_dict()
-        s = render_to_string('graph.html', {'analogicas': d['entradasanalogicas'] + d['registros'],
+        s = render_to_string('graph.html', {'robot': robot,
+                                            'analogicas': d['entradasanalogicas'] + d['registros'],
                                             'digitales': d['entradasdigitales'] + d['salidasdigitales']}
                             ).encode('utf-8')
         self.docFactory = loaders.xmlstr(s)        
@@ -545,13 +546,13 @@ class GraphElement(LiveElement):
     def start(self):
         print "Se apreto el bonton start"
         # TODO: verificar que sea un sitio valido
-        if graficos.get(self.sitio):
-            if id(self) in graficos[self.sitio].keys():
-                del graficos[self.sitio][id(self)]
+        if graficos.get(self.robot):
+            if id(self) in graficos[self.robot].keys():
+                del graficos[self.robot][id(self)]
             else:
-                graficos[self.sitio][id(self)] = self
+                graficos[self.robot][id(self)] = self
         else:
-            graficos[self.sitio] = {id(self): self}
+            graficos[self.robot] = {id(self): self}
     start = expose(start)
     
 class GraphPage(LivePage):
@@ -575,9 +576,9 @@ class GraphPage(LivePage):
         self.element.callRemote('inicializar', self.robot.confignames_dict())
         
     def disconn(self, reason):
-        if graficos.get(self.sitio):
-            if id(self.element) in graficos[self.sitio].keys():
-                del graficos[self.sitio][id(self.element)]
+        if graficos.get(self.robot):
+            if id(self.element) in graficos[self.robot].keys():
+                del graficos[self.robot][id(self.element)]
 
     def render_myElement(self, ctx, data):
         request = inevow.IRequest(ctx)
@@ -609,8 +610,8 @@ class TodoPage(LivePage):
             if id(self.element1) in lectores[self.robot].keys():
                 del lectores[id(self.element1)]
             
-        if graficos.get(self.sitio):
-            if id(self.element2) in graficos[self.sitio].keys():
+        if graficos.get(self.robot):
+            if id(self.element2) in graficos[self.robot].keys():
                 del graficos[id(self.element2)]
 
     def render_myElement1(self, ctx, data):

@@ -12,17 +12,24 @@ TempDisplay.TempWidget.methods(
 
         self.nodos = {};
         self.enableChangeFlag = false;
+        self.firstTime = true;
     },
 
     function doRead(self) {
         // ejecuta funcion read en el servidor
         self.callRemote("read");
 
+        // mostrar imagen Leyendo...
+        if (self.firstTime) {
+            $("[name=reading_img]").show();
+            }
+
         var boton = $("[name=botonLeer]");
         if (boton.attr('value') == "Leer"){
             boton.attr('value', "Detener");
         } else {
             boton.attr('value', "Leer");
+            self.firstTime = true;
         }
 
         return false;
@@ -77,6 +84,18 @@ TempDisplay.TempWidget.methods(
             $("[name=changing_img]").hide();
             self.enableChangeFlag = false;
         }
+
+        if (self.firstTime) {
+            $("[name=reading_img]").hide();
+            
+            // activar Cambiar
+            var boton = $("[name=botonCambiar]");
+            boton.removeAttr('disabled');
+            var campo = $("[name=valor_consigna]");
+            campo.removeAttr('disabled');
+            
+            self.firstTime = false;
+            }
         // actualizar valores
         data = JSON.parse(data);
         $.each(data, function(k,v) {

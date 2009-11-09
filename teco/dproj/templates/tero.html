@@ -6,6 +6,7 @@
     <form name="terElement">
         <athena:handler event="onsubmit" handler="doRead" />
         <input name="botonLeer" type="submit" value="Leer" />
+        <img name="reading_img" align="middle" src="/imgs/ajax-loader.gif" alt="loading" style="display: none"/>    
     </form>
     
 <table style="width:100%">
@@ -35,8 +36,8 @@
         {% endfor %}
         <div align="right">
         <img name="changing_img" align="middle" src="/imgs/ajax-loader-ball.gif" alt="loading" style="display: none"/>    
-        <input type="text" name="valor_consigna" size="2" />
-        <input name="botonCambiar" type="submit" value="Cambiar" />
+        <input type="text" name="valor_consigna" size="2" disabled="disabled"/>
+        <input name="botonCambiar" type="submit" value="Cambiar" disabled="disabled"/>
         <span name="error_msg"></span>
         </div>
         </form>                
