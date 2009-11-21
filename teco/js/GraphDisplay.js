@@ -25,13 +25,18 @@ GraphDisplay.GraphWidget.methods(
          
          var datasets2 = {}
          var e = 0
+         ticksnames = []
          $.each(full['entradasdigitales'], function(i, v){
-            datasets2[v] = { label: v, data: [], 0: e, 1: e+1 }
-            e += 2
+            datasets2[v] = { label: v, data: [], 0: e, 1: e+2 }
+            ticksnames.push([e, v + '_off'])
+            ticksnames.push([e+2, v + '_on'])
+            e += 4
          });
          $.each(full['salidasdigitales'], function(i, v){
-            datasets2[v] = { label: v, data: [], 0: e, 1: e+1 }
-            e += 2
+            datasets2[v] = { label: v, data: [], 0: e, 1: e+2 }
+            ticksnames.push([e, v + '_off'])
+            ticksnames.push([e+2, v + '_on'])
+            e += 4
          });
          
         self.datasets = datasets
@@ -42,7 +47,7 @@ GraphDisplay.GraphWidget.methods(
                          xaxis: { max: 275, min: 0 }}
 
          var options2 = { legend: { noColumns: 2 }, 
-                          yaxis: { min: -0.5, max: e + 1.5 },  
+                          yaxis: { min: -0.5, max: e - 1.5, ticks: ticksnames},  
                           xaxis: { min: 0, max: 275 },
                           lines: { steps: true }
                           }
