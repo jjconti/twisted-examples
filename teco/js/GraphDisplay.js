@@ -16,38 +16,39 @@ GraphDisplay.GraphWidget.methods(
     function inicializar(self, full){
          
          var datasets = {}
-         $.each(full['entradasanalogicas'], function(){
-            datasets[this] = { label: this, data: [] }
+         $.each(full['entradasanalogicas'], function(i, v){
+            datasets[v] = { label: v, data: [] }
          });
-         $.each(full['registros'], function(){
-            datasets[this] = { label: this, data: [] }
+         $.each(full['registros'], function(i, v){
+            datasets[v] = { label: v, data: [] }
          });
          
          var datasets2 = {}
-         var i = 0
-         $.each(full['entradasdigitales'], function(){
-            datasets2[this] = { label: this, data: [], 0: i, 1: i+1 }
-            i += 2
+         var e = 0
+         $.each(full['entradasdigitales'], function(i, v){
+            datasets2[v] = { label: v, data: [], 0: e, 1: e+1 }
+            e += 2
          });
-         $.each(full['salidasdigitales'], function(){
-            datasets2[this] = { label: this, data: [], 0: i, 1: i+1 }
-            i += 2
+         $.each(full['salidasdigitales'], function(i, v){
+            datasets2[v] = { label: v, data: [], 0: e, 1: e+1 }
+            e += 2
          });
          
         self.datasets = datasets
         self.datasets2 = datasets2
 
          var options = { legend: { noColumns: 2 }, 
-                                  yaxis: { max: 50, min: 0 },  
-                                  xaxis: { max: 275, min: 0 }}
+                         yaxis: { max: 50, min: 0 },  
+                         xaxis: { max: 275, min: 0 }}
 
          var options2 = { legend: { noColumns: 2 }, 
-                                  yaxis: {  min: -0.5, max: i + 1.5 },  
-                                  xaxis: {  min: 0, max: 275}}
+                          yaxis: { min: -0.5, max: e + 1.5 },  
+                          xaxis: { min: 0, max: 275 },
+                          lines: { steps: true }
+                          }
+                          
          self.options = options;
-         self.options2 = options2;        
-         
-
+         self.options2 = options2;              
 
         // hard-code color indices to prevent them from shifting
         var i = 0;
@@ -64,14 +65,7 @@ GraphDisplay.GraphWidget.methods(
         var choiceContainer2 = $("[name=choices2]");
         self.choiceContainer = choiceContainer;
         self.choiceContainer2 = choiceContainer2;
-        /*$.each(datasets, function(key, val) {
-            choiceContainer.append('<input type="checkbox" name="' + key +
-                                                  '" checked="checked" >' + val.label + '</input>');
-        });
-        $.each(datasets2, function(key, val) {
-            choiceContainer2.append('<input type="checkbox" name="' + key +
-                                                  '" checked="checked" >' + val.label + '</input>');
-        });*/
+
         choiceContainer.find("input").click(function() {
                 var data = [];
                 self.choiceContainer.find("input:checked").each(function () {
@@ -125,6 +119,7 @@ GraphDisplay.GraphWidget.methods(
             s.data = self.datasets[s.label].data;
         });
         self.plot.setData(series);
+//        self.plot.setupGrid() // reescala x e y
         self.plot.draw();
         
         var series2 = self.plot2.getData();
