@@ -5,7 +5,7 @@ RR = 44 # lectura de un registro
 WB = 45 # escritura de una bobina
 RB = 46 # lectura de una bobina
 
-VALID_FUNCS = [ID, RD, WR]
+VALID_FUNCS = [ID, RD, WR, WB]
 
 LR = 00 # control de errores
 

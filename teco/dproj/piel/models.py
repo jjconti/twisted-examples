@@ -97,9 +97,11 @@ class Robot(models.Model):
     def __unicode__(self):
         return u"%s en %s" % (self.mbdir, self.sitio)
 
-    def config_dict(self):
+    def config_dict(self, gcond=None):
 
         configuracion = self.robotconfig_set.all()
+        if gcond is not None:
+            configuracion = configuracion.filter(graficable=gcond)
         entradasanalogicas = [c for c in configuracion if c.tipoio.esEA()]
         registros = [c for c in configuracion if c.tipoio.esRE()]
         salidasdigitales = [c for c in configuracion if c.tipoio.esSD()]
@@ -110,9 +112,11 @@ class Robot(models.Model):
                 'entradasdigitales': entradasdigitales
                }
 
-    def confignames_dict(self):
+    def confignames_dict(self, gcond=None):
     
         configuracion = self.robotconfig_set.all()
+        if gcond is not None:
+            configuracion = configuracion.filter(graficable=gcond)
         entradasanalogicas = [c.tipoio.campo for c in configuracion if c.tipoio.esEA()]
         registros = [c.tipoio.campo for c in configuracion if c.tipoio.esRE()]
         salidasdigitales = [c.tipoio.campo for c in configuracion if c.tipoio.esSD()]
@@ -129,6 +133,9 @@ class RobotConfig(models.Model):
     tipoio = models.ForeignKey(RobotTipoIO, null=True, db_column='tipoio', blank=True)   
     magnitud = models.ForeignKey(Magnitud, null=True, db_column='magnitud', blank=True)
     medida = models.ForeignKey(Medida, null=True, db_column='medida', blank=True)
+    editable = models.BooleanField()
+    graficable = models.BooleanField() 
+    
     class Meta:
         db_table = u'robots_config'
 

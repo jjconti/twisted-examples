@@ -30,12 +30,12 @@
             <athena:handler event="onsubmit" handler="doChange" />
         {% for re in registros %}
         <span>
-        <input type="radio" name="consignas" value="{{ forloop.counter }}" 
-        {% if forloop.first %}checked="checked"{% endif %} />
+        <input type="radio" name="consignas" value="{{ forloop.counter }}"
+        {% if forloop.first %}checked="checked"{% endif %} {% if not re.editable %}disabled="disabled"{% endif %}/> {# problemas si el primero no es editable #} 
         {{ re.medida.texto }}:</span><span style="color:#339900; font-weight: bold" name="{{ re.tipoio.campo }}"></span> {{ re.magnitud.uni }}<br/>
         {% endfor %}
         <div align="right">
-        <img name="changing_img" align="middle" src="/imgs/ajax-loader-ball.gif" alt="loading" style="display: none"/>    
+        <img  class="changing" name="changing_img" align="middle" src="/imgs/ajax-loader-ball.gif" alt="loading" style="display: none"/>    
         <input type="text" name="valor_consigna" size="2" disabled="disabled"/>
         <input name="botonCambiar" type="submit" value="Cambiar" disabled="disabled"/>
         <span name="error_msg"></span>
@@ -60,9 +60,21 @@
 
         <div name="salidasdigitales">
         <h3>Salidas Digitales</h3>
+        <form name="sdChange">
+        <athena:handler event="onsubmit" handler="doChangeSD" />
         {% for sd in salidasdigitales %}
-        <span>{{ sd.medida.texto }}:</span><span style="color:#339900; font-weight: bold" name="{{ sd.tipoio.campo }}"></span> {{ sd.magnitud.uni }}<br/>
+        <input type="radio" name="consignasSD" value="{{ forloop.counter }}"
+        {% if forloop.first %}checked="checked"{% endif %} {% if not sd.editable %}disabled="disabled"{% endif %}/> {# problemas si el primero no es editable #} 
+        <span>{{ sd.medida.texto }}:</span><span style="color:#339900; font-weight: bold" name="{{ sd.tipoio.campo }}"></span> {{ sd.magnitud.uni }}
+        <br/>
         {% endfor %}
+        <div align="right">
+        <img class="changing" name="changing_imgSD" align="middle" src="/imgs/ajax-loader-ball.gif" alt="loading" style="display: none"/>    
+        <input name="botonCambiar" type="submit" value="Cambiar" disabled="disabled"/>
+        <span name="error_msg"></span>
+        </div>
+
+        </form>
         </div>
               
       </td>

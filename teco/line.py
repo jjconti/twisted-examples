@@ -10,7 +10,7 @@ from twisted.python import log
 from twisted.python.logfile import DailyLogFile
 #log.startLogging(DailyLogFile('log.txt', LOGDIR))
 from sys import stdout
-log.startLogging(stdout)
+#log.startLogging(stdout)
 
 from twisted.internet.task import LoopingCall
 
@@ -114,7 +114,10 @@ class TModBus(LineOnlyReceiver):
                     self.process_read(disp, body)
                 elif func == WR:
                     self.process_write_reg(disp, body)
-
+                elif func == WB:
+                    self.process_write_reg(disp, body)  # aparentemente no hay nada
+                                                        # distinto entre escribir una
+                                                        # bobina y un registro
     def process_id(self, disp, body):
         print "Dispositivo %s: %s" % (disp, body)
         
@@ -194,7 +197,14 @@ class TModBus(LineOnlyReceiver):
         print "Enviando: %s" % line
         self.sendLine(line)
             
-
+    def ask_write_bob(self, disp, bob, val):
+        if val not in (0,1):
+            return
+        print "Se cambiara la bobina", bob, "valor", val
+        line = ':%02d%d%02d%d%02d' % (disp, WB, bob, val, LR)
+        print "Enviando: %s" % line
+        self.sendLine(line)
+        
 class TModBusFactory(Factory):
     protocol = TModBus
     writeBuffer = {}    # clave prolocolo, valor triplete para ask_write_reg
@@ -215,8 +225,11 @@ class TModBusFactory(Factory):
                     n += 1
             if k in self.writeBuffer:    # hay elementos para escribir en este sitio
                 print "Calendarizando escritura."
-                def f(cl, d, r, v):
-                    cl['self'].ask_write_reg(d, r, v)
+                def f(cl, t, d, r, v):
+                    if t == WR:
+                        cl['self'].ask_write_reg(d, r, v)
+                    elif t == WB:
+                        cl['self'].ask_write_bob(d, r, v)
                 reactor.callLater(0, f, c, *self.writeBuffer[k])
                 self.writeBuffer.pop(k)
                 
@@ -478,9 +491,6 @@ class TempElement(LiveElement):
 
     def change(self, consigna, val):
         print "Se apreto el bonton change"
-        #if consigna not in ['1', '2', '3', '4'] or len(val) > 2:   # una validacion
-        #    print "La consigna puede ser sobre 1..4 y menor a 100."
-        #    return
         try:
             consigna = int(consigna)
             val = int(val)
@@ -488,13 +498,29 @@ class TempElement(LiveElement):
         except:
             print "Excepcion algun valor no era un entero compatible."
             return
-        #self.client.ask_write_reg(disp, consigna, val)
         # si no se despacho un cambio para un sitio y llega un nuevo
         # cambio, se pisa al anterior.
         print "llenando el buffer."
-        factory.writeBuffer[id(self.client)] = (disp, consigna, val)
+        factory.writeBuffer[id(self.client)] = (WR, disp, consigna, val)
     change = expose(change)
 
+    def changeSD(self, consigna, val):
+        '''
+        val es el valor a cambiar.
+        '''
+        print "Se apreto el bonton change de SD"
+        try:
+            consigna = int(consigna)
+            val = 1 - int(val)  # 0 -> 1, 1 ->0
+            disp = int(self.robot.mbdir)
+        except:
+            print "Excepcion algun valor no era un entero compatible."
+            return
+        # si no se despacho un cambio para un sitio y llega un nuevo
+        # cambio, se pisa al anterior.
+        print "llenando el buffer."
+        factory.writeBuffer[id(self.client)] = (WB, disp, consigna, val)
+    changeSD = expose(changeSD)
     
 class TerPage(LivePage):
 
@@ -535,7 +561,7 @@ class GraphElement(LiveElement):
     def __init__(self, sitio='', robot=''):
         self.sitio = sitio
         self.robot = robot
-        d = robot.config_dict()
+        d = robot.config_dict(True) # True: solo los graficables
         s = render_to_string('graph.html', {'robot': robot,
                                             'analogicas': d['entradasanalogicas'] + d['registros'],
                                             'digitales': d['entradasdigitales'] + d['salidasdigitales']}
@@ -573,7 +599,8 @@ class GraphPage(LivePage):
         d.addErrback(self.disconn)
 
     def afterRender(self, ctx):
-        self.element.callRemote('inicializar', self.robot.confignames_dict())
+        d = self.robot.confignames_dict(True)   # True: solo los graficables
+        self.element.callRemote('inicializar', d)
         
     def disconn(self, reason):
         if graficos.get(self.robot):

@@ -124,7 +124,6 @@ GraphDisplay.GraphWidget.methods(
             s.data = self.datasets[s.label].data;
         });
         self.plot.setData(series);
-//        self.plot.setupGrid() // reescala x e y
         self.plot.draw();
         
         var series2 = self.plot2.getData();
@@ -153,8 +152,8 @@ GraphDisplay.GraphWidget.methods(
     function nuevoValor2(self, data) {
         data = JSON.parse(data);
         $.each(self.datasets, function(k, v){
-            v.data.push([self.tick, data[k]]);
-        });
+            v.data.push([self.tick, data[k]]);  // en este punto no abria problema
+        });                                     // con no graficar algunos valores 
         $.each(self.datasets2, function(k, v){
             v.data.push([self.tick, v[data[k]]]);    // v[0] o v[1]
         });

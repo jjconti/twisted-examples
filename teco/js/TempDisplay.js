@@ -49,7 +49,21 @@ TempDisplay.TempWidget.methods(
         self.callRemote("change", cual, cuanto);
         return false;
     },
-    
+
+    function doChangeSD(self) {
+        // desactivar boton
+        var boton = $("[name=botonCambiar]");
+        boton.attr('disabled', 'disabled');
+        var campo = $("[name=valor_consigna]");
+        campo.attr('disabled', 'disabled');         
+        $("[name=changing_imgSD]").show();
+        // ejecuta funcion change en el servidor
+        var cual = $("input[name='consignasSD']:checked").val();
+        var cuanto = $("[name='sd" + cual +"']").text();
+        self.callRemote("changeSD", cual, cuanto);
+        return false;
+    },
+        
     function enableChange(self) {
         self.enableChangeFlag = true;            
     },
@@ -81,7 +95,7 @@ TempDisplay.TempWidget.methods(
             var campo = $("[name=valor_consigna]");
             campo.removeAttr('disabled'); 
             $("[name=valor_consigna]").val('');
-            $("[name=changing_img]").hide();
+            $("[class=changing]").hide();
             self.enableChangeFlag = false;
         }
 
