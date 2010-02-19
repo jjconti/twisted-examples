@@ -241,7 +241,7 @@ class TModBusFactory(Factory):
         self.clients = {}
         self.lc = LoopingCall(self.paso)
         #self.lc.start(60)
-        self.lc.start(15)        
+        self.lc.start(20)        
 
 factory = TModBusFactory()
 #reactor.listenTCP(9007, factory)
@@ -662,11 +662,14 @@ class IndexPage(rend.Page):
         rend.Page.__init__ ( self, *args, **kwargs )
 
     def renderHTTP(self, ctx):
-        return '<a href="/sitios/">sitios</a>'
+        return '<a href="/sitios/">sitios</a><br/><a href="/celu/">celu</a>'
 
     def child_sitios(self, ctx):
         return SitiosPage()
-                    
+
+    def child_celu(self, ctx):
+        return CeluPage()
+    
     def child_ter(self, ctx):
         return TerPage()
 
@@ -689,7 +692,19 @@ class SitiosPage(rend.Page):
     def childFactory(self, ctx, name):
         # si name esta conectado
         return SitioPage(name)        
+
+class CeluPage(rend.Page):
+
+    addSlash = True
+    
+    def renderHTTP(self, ctx):
+        #return render_to_string('celu.html', {'clientes': factory.clients.values()}).encode('utf-8')
+        return render_to_string('celu.html', {'sitios': Sitio.objects.all()}).encode('utf-8')
         
+    def childFactory(self, ctx, name):
+        # si name esta conectado
+        return SitioCeluPage(name)
+    
 class SitioPage(rend.Page):
 
     addSlash = True
@@ -709,7 +724,30 @@ class SitioPage(rend.Page):
         
     def childFactory(self, ctx, name):
         return RobotPage(name, self.sitio)       
+
+class SitioCeluPage(rend.Page):
+
+    addSlash = True
+    
+    def __init__ (self, name, *args, **kwargs):
+        self.name = name    # VERIFICAR QUE SEA UN SITIO DE LA BD Y QUE ESTE ONLINE
+        try:
+            self.sitio = Sitio.objects.get(ccc=self.name)
+        except Sitio.DoesNotExist:
+            self.sitio = None
+        rend.Page.__init__ ( self, *args, **kwargs )
+        
+    def renderHTTP(self, ctx):
+        if not self.sitio:
+            return ''
+        valores = []
+        for r in self.sitio.robot_set.all():
+            valores.append(Valor.objects.filter(robot=r).order_by('-id')[0])
+            #valores.append(r.last_valor)
             
+        return render_to_string('sitiocelu.html', {'sitio': self.sitio,
+                                                    'valores': valores}).encode('utf-8')
+    
 class RobotPage(rend.Page):
 
     addSlash = True

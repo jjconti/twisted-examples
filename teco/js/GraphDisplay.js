@@ -46,6 +46,7 @@ GraphDisplay.GraphWidget.methods(
                          yaxis: { max: 50, min: 0 },  
                          xaxis: { max: 275, min: 0 }}
 
+        
          var options2 = { legend: { noColumns: 2 }, 
                           yaxis: { min: -0.5, max: e - 1.5, ticks: ticksnames},  
                           xaxis: { min: 0, max: 275 },

@@ -91,6 +91,8 @@ class Robot(models.Model):
     mbdir = models.CharField(max_length=6, blank=True)
     observaciones = models.TextField(blank=True)
     sitio = models.ForeignKey(Sitio, null=True, db_column='sitio', blank=True)
+    last_valor = models.ForeignKey('Valor', null=True, blank=True, db_column='last_valor', related_name='Valor.robot')
+    
     class Meta:
         db_table = u'robots'
 
@@ -185,6 +187,7 @@ class Valor(models.Model):
     timestamp = models.DateTimeField(null=True)
     class Meta:
         db_table = u'valores'
+        ordering = ('id',)
 
 EVENTO_CHOICES = (
     ('I', 'Informacion'),
@@ -199,3 +202,18 @@ class Evento(models.Model):
     
     def __unicode__(self):
         return "%s: %s - %s" % (self.timestamp, self.tipo, self.texto)
+
+# Signals
+
+from django.db.models.signals import post_save
+
+def record_last_valor(sender, instance, created, **kwargs):
+    print "LAST_VALOR"*5
+    print instance, created
+    if created:
+        instance.robot.last_valor = instance
+        instance.robot.save()
+        print instance.robot.last_valor
+        print instance == instance.robot.last_valor
+
+post_save.connect(record_last_valor, sender=Valor)

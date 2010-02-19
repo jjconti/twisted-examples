@@ -1,0 +1,14 @@
+<html>
+<head title="{{ title }}">
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<h1>{{ sitios|length }} sitio{{ sitios|pluralize }}</h1>
+    <div>
+    {% for s in sitios %}
+    <h2><a href="/celu/{{ s.ccc }}">{{ s.nombre }}</a></h2>
+    {% endfor %}
+    </div>
+
+</body>
+</html>
