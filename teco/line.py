@@ -124,7 +124,8 @@ class TModBus(LineOnlyReceiver):
     mascaras = {}
     for r in RobotTipo.objects.all():
         print r.mascara
-        mascaras[r.id] = re.compile(str(r.mascara))
+        print r.id
+        mascaras[r.id] = re.compile(str(r.mascara.strip()))
     def process_read(self, disp, body):
         robot = factory.clients[id(self)]['sitio'].robot_set.get(mbdir=disp)
         m = TModBus.mascaras[robot.tipo.id].match(body)
