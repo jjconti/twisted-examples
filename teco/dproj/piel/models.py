@@ -76,7 +76,7 @@ class RobotTipoIO(models.Model):
 class RobotTipo(models.Model):
     id = models.IntegerField(primary_key=True, unique=True)
     nombre = models.CharField(max_length=120, blank=True)
-    mascara = models.CharField(max_length=200, blank=True)
+    mascara = models.CharField(max_length=500, blank=True)
         
     class Meta:
         db_table = u'robots_tipos'
