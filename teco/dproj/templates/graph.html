@@ -13,7 +13,7 @@
     <p name="choices2">Mostrar:{% for c in digitales %}
                               <input type="checkbox" name="{{ c.tipoio.campo }}" 
                               checked="checked">
-                              <span title="{{ c.medida.texto}} en {{ c.magnitud.uni }}">{{ c.tipoio.campo }}</span>
+                              <span title="{{ c.medida.texto}}">{{ c.tipoio.campo }}</span>
                               </input>
                               {% endfor %}                            
     </p>

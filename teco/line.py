@@ -222,7 +222,12 @@ class TModBusFactory(Factory):
                     def f(r, cl):
                         print "Se preguntara al robot ", r, cl['sitio'].ccc
                         cl['self'].ask_read(r)
-                    reactor.callLater(5*n,f, rmbdir, c)
+                    reactor.callLater(5*n, f, rmbdir, c)
+
+                    if c['sitio'].ccc.startswith('VM'):
+                        print "Este sitio es una valija."
+                        reactor.callLater(5*n + 10, f, rmbdir, c)   #HARDCODED
+                        
                     n += 1
             if k in self.writeBuffer:    # hay elementos para escribir en este sitio
                 print "Calendarizando escritura."
@@ -745,8 +750,12 @@ class SitioCeluPage(rend.Page):
         for r in self.sitio.robot_set.all():
             valores.append(Valor.objects.filter(robot=r).order_by('-id')[0])
             #valores.append(r.last_valor)
-            
-        return render_to_string('sitiocelu.html', {'sitio': self.sitio,
+
+        if self.sitio.ccc.startswith('VM'):
+            html = 'sitioceluvalija.html'   # hack, esto debe estar en la bd
+        else:
+            html = 'sitiocelu.html'
+        return render_to_string(html, {'sitio': self.sitio,
                                                     'valores': valores}).encode('utf-8')
     
 class RobotPage(rend.Page):
@@ -769,7 +778,8 @@ class RobotPage(rend.Page):
                 count = Valor.objects.filter(robot=self.robot).count()
             except Valor.DoesNotExist:
                 return ''
-            valores = Valor.objects.filter(robot=self.robot)[count -20:count]
+            #valores = Valor.objects.filter(robot=self.robot)[count -20:count]
+            valores = []
             return render_to_string('robot.html', {'sitio': self.sitio,
                                                    'robot': self.robot, 
                                                    'valores': valores }).encode('utf-8')
@@ -794,4 +804,53 @@ reactor.listenTCP(8080, site)
 #rendered = render_to_string('my_template.html', { 'foo': 'bar' })
 #print rendered
 
+# Modbus
+from pymodbus.server import ModbusServerContext, ModbusServerFactory, _logger
+from pymodbus.datastore import ModbusSequentialDataBlock
+import logging
+
+class MyDataBlock(ModbusSequentialDataBlock):
+    
+    def __init__(self, tipo, address=None, values=None):
+        '''
+        Initializes the datastore
+        '''
+        self.tipo = tipo
+        self.address = 0
+        self.values = [0] * 4
+        self.default_value = None
+
+    def checkAddress(self, address, count=1):
+        return True
+    
+    def getValues(self, address, count=1):
+        print "get", address, count
+        res = []
+        s = factory.clients.values()[0]['sitio']
+        print type(s), 'esteeeeeee'
+        print s.robot_set.all
+        for r in s.robot_set.all():
+            c = Valor.objects.filter(robot=r).count()
+            val = Valor.objects.filter(robot=r)[c - 1: c]
+            #for i in range(1,11):
+            #res.append(getattr(val, self.tipo + str(i)))
+            res.append(val[0].ea1)
+            #res.append(val.ea1)
+            #res.append(val.ea1)
+            #res.append(val.ea1)            
+        def por10(x):
+            return int(x) * 10
+        res = [por10(x) for x in res]
+        print res
+        return res[address:count]            
+    
+    def setValues(self, address, values):
+        pass
+    
+context = ModbusServerContext(d=MyDataBlock('ed'),
+                              c=MyDataBlock('sd'),
+                              i=MyDataBlock('ea'),
+                              h=MyDataBlock('re'))
+reactor.listenTCP(502, ModbusServerFactory(context))
+_logger.setLevel(logging.DEBUG)
 reactor.run()
