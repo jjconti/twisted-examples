@@ -46,7 +46,7 @@ class TModBus(LineOnlyReceiver):
     def connectionMade(self):
         #self.factory.clients.append(self)
         self.state = IDLE
-        self.factory.clients[id(self)] = {'self': self, 'sitio': None}
+        self.factory.clients[id(self)] = {'self': self, 'sitio': None, 'last': {}}
         self.peer = self.transport.getPeer()
         print "Nuevo cliente: %s:%d" % (self.peer.host, self.peer.port) #LOG
         print "Total: %d" % (len(self.factory.clients),)
@@ -132,6 +132,7 @@ class TModBus(LineOnlyReceiver):
         if m:
             try:
                 d = m.groupdict()
+                factory.clients[id(self)]['last'][robot.id] = d
                 d['robot'] = robot
                 v = Valor(**d)
                 v.save()
@@ -809,6 +810,13 @@ from pymodbus.server import ModbusServerContext, ModbusServerFactory, _logger
 from pymodbus.datastore import ModbusSequentialDataBlock
 import logging
 
+from decimal import Decimal as D
+def por10(x):
+    '''
+    Multiplica por 10 y devuelve un entero.
+    '''
+    return int(D(x) * 10)
+        
 class MyDataBlock(ModbusSequentialDataBlock):
     
     def __init__(self, tipo, address=None, values=None):
@@ -817,7 +825,7 @@ class MyDataBlock(ModbusSequentialDataBlock):
         '''
         self.tipo = tipo
         self.address = 0
-        self.values = [0] * 4
+        #self.values = [0] * 4
         self.default_value = None
 
     def checkAddress(self, address, count=1):
@@ -826,21 +834,9 @@ class MyDataBlock(ModbusSequentialDataBlock):
     def getValues(self, address, count=1):
         print "get", address, count
         res = []
-        s = factory.clients.values()[0]['sitio']
-        print type(s), 'esteeeeeee'
-        print s.robot_set.all
-        for r in s.robot_set.all():
-            c = Valor.objects.filter(robot=r).count()
-            val = Valor.objects.filter(robot=r)[c - 1: c]
-            #for i in range(1,11):
-            #res.append(getattr(val, self.tipo + str(i)))
-            res.append(val[0].ea1)
-            #res.append(val.ea1)
-            #res.append(val.ea1)
-            #res.append(val.ea1)            
-        def por10(x):
-            return int(x) * 10
-        res = [por10(x) for x in res]
+        data = [c for c in factory.clients.values() if c['sitio'].ccc == 'SJR'][0]['last']
+        for v in data.values(): # cada v es un dict asociado al ultimo Valor de cada Robot
+            res.extend([por10(y) for x,y in v.items() if x.startswith(self.tipo)])
         print res
         return res[address:count]            
     
@@ -851,6 +847,9 @@ context = ModbusServerContext(d=MyDataBlock('ed'),
                               c=MyDataBlock('sd'),
                               i=MyDataBlock('ea'),
                               h=MyDataBlock('re'))
+# Hacer una vez por cliente G24 contectado
 reactor.listenTCP(502, ModbusServerFactory(context))
 _logger.setLevel(logging.DEBUG)
+
+# Que empiece la fiesta
 reactor.run()
