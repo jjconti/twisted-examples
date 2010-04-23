@@ -8,10 +8,10 @@ myPackage = athena.JSPackage({
     #'flot': '/home/juanjo/python/twisted/teco/js/flot/jquery.flot.min.js',
     #'json2': '/home/juanjo/python/twisted/teco/js/json2.js'
     
-    'TempDisplay': 'C:\Documents and Settings\Teco2006\Escritorio\line\js\TempDisplay.js',
-    'GraphDisplay': 'C:\Documents and Settings\Teco2006\Escritorio\line\js\GraphDisplay.js',
-    'jquery': 'C:\Documents and Settings\Teco2006\Escritorio\line\js\jquery-1.3.2.min.js',
-    'excanvas': 'C:\Documents and Settings\Teco2006\Escritorio\line\js\excanvas.pack.js',
-    'flot': 'C:\Documents and Settings\Teco2006\Escritorio\line\js\\flot\jquery.flot.min.js',
-    'json2': 'C:\Documents and Settings\Teco2006\Escritorio\line\js\json2.js'
+    'TempDisplay': 'D:\escr\line\js\TempDisplay.js',
+    'GraphDisplay': 'D:\escr\line\js\GraphDisplay.js',
+    'jquery': 'D:\escr\line\js\jquery-1.3.2.min.js',
+    'excanvas': 'D:\escr\line\js\excanvas.pack.js',
+    'flot': 'D:\escr\line\js\\flot\jquery.flot.min.js',
+    'json2': 'D:\escr\line\js\json2.js'
     })

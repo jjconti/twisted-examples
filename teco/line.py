@@ -21,7 +21,7 @@ import re
 import sys
 
 sys.path = sys.path + ['/home/juanjo/python/twisted/teco/dproj']
-sys.path = sys.path + ['C:\Documents and Settings\Teco2006\Escritorio\line\dproj']
+sys.path = sys.path + ['D:\escr\line\dproj']
 from dproj.piel.models import *
 #print len(Robot.objects.filter(nombre__startswith='juanjo'))
 # Django Templates
@@ -132,7 +132,7 @@ class TModBus(LineOnlyReceiver):
         if m:
             try:
                 d = m.groupdict()
-                factory.clients[id(self)]['last'][robot.id] = d
+                factory.clients[id(self)]['last'][robot.mbdir] = d
                 d['robot'] = robot
                 v = Valor(**d)
                 v.save()
@@ -806,8 +806,8 @@ reactor.listenTCP(8080, site)
 #print rendered
 
 # Modbus
-from pymodbus.server import ModbusServerContext, ModbusServerFactory, _logger
-from pymodbus.datastore import ModbusSequentialDataBlock
+from pymodbus.server.async import ModbusServerFactory, _logger
+from pymodbus.datastore import ModbusServerContext, ModbusSequentialDataBlock
 import logging
 
 from decimal import Decimal as D
@@ -816,7 +816,9 @@ def por10(x):
     Multiplica por 10 y devuelve un entero.
     '''
     return int(D(x) * 10)
-        
+
+from operator import itemgetter
+
 class MyDataBlock(ModbusSequentialDataBlock):
     
     def __init__(self, tipo, address=None, values=None):
@@ -825,7 +827,7 @@ class MyDataBlock(ModbusSequentialDataBlock):
         '''
         self.tipo = tipo
         self.address = 0
-        #self.values = [0] * 4
+        self.values = [0] * 30 #pymodbus lo usa!
         self.default_value = None
 
     def checkAddress(self, address, count=1):
@@ -834,14 +836,17 @@ class MyDataBlock(ModbusSequentialDataBlock):
     def getValues(self, address, count=1):
         print "get", address, count
         res = []
+        # Seleccionando a mano los datos para el sitio SJR
         data = [c for c in factory.clients.values() if c['sitio'].ccc == 'SJR'][0]['last']
-        for v in data.values(): # cada v es un dict asociado al ultimo Valor de cada Robot
-            res.extend([por10(y) for x,y in v.items() if x.startswith(self.tipo)])
-        print res
-        return res[address:count]            
+        for mbdir in sorted(data.keys()):
+            items = data[mbdir]
+            #                      [ea1. ea2, ea3... ea10]
+            p = [por10(y) for y in [items.get(self.tipo + str(i), -1) for i in range(1,11)]] # registros ordenados
+            res.extend(p)
+        return res[address:address+count]            
     
     def setValues(self, address, values):
-        pass
+        print "Set Value address", address, "values", values
     
 context = ModbusServerContext(d=MyDataBlock('ed'),
                               c=MyDataBlock('sd'),
