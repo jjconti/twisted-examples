@@ -834,7 +834,7 @@ class MyDataBlock(ModbusSequentialDataBlock):
         return True
     
     def getValues(self, address, count=1):
-        print "get", address, count
+        print "get", self.tipo, address, count
         res = []
         # Seleccionando a mano los datos para el sitio SJR
         data = [c for c in factory.clients.values() if c['sitio'].ccc == 'SJR'][0]['last']
@@ -843,10 +843,26 @@ class MyDataBlock(ModbusSequentialDataBlock):
             #                      [ea1. ea2, ea3... ea10]
             p = [por10(y) for y in [items.get(self.tipo + str(i), -1) for i in range(1,11)]] # registros ordenados
             res.extend(p)
+        print res[address:address+count]            
         return res[address:address+count]            
     
     def setValues(self, address, values):
         print "Set Value address", address, "values", values
+        disp, reg = divmod(address, 10)
+        disp += 1
+        reg += 1
+        value = values[0]
+        if type(value) == bool:
+            value = int(value)
+        else:
+            value = value / 10
+        print "disp", disp, "reg", reg, "value", value
+        client = [c for c in factory.clients.values() if c['sitio'].ccc == 'SJR'][0]['self']
+        if self.tipo == 're':
+            client.ask_write_reg(disp, reg, value)
+        elif self.tipo == 'sd':
+            client.ask_write_bob(disp, reg, value)
+        print "Fin del set"            
     
 context = ModbusServerContext(d=MyDataBlock('ed'),
                               c=MyDataBlock('sd'),
