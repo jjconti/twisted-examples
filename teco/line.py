@@ -859,9 +859,11 @@ class MyDataBlock(ModbusSequentialDataBlock):
         print "disp", disp, "reg", reg, "value", value
         client = [c for c in factory.clients.values() if c['sitio'].ccc == 'SJR'][0]['self']
         if self.tipo == 're':
-            client.ask_write_reg(disp, reg, value)
+            factory.writeBuffer[id(client)] = (WR, disp, reg, value)
+            #client.ask_write_reg(disp, reg, value)
         elif self.tipo == 'sd':
-            client.ask_write_bob(disp, reg, value)
+            #client.ask_write_bob(disp, reg, value)
+            factory.writeBuffer[id(client)] = (WB, disp, reg, value)
         print "Fin del set"            
     
 context = ModbusServerContext(d=MyDataBlock('ed'),
