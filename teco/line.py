@@ -91,6 +91,9 @@ class TModBus(LineOnlyReceiver):
                 self.sitio = Sitio.objects.get(ccc=sitio)
                 self.factory.clients[id(self)]['sitio'] = self.sitio    #dejar uno solo
                 Evento(tipo='I', texto="Se conecto el sitio %s" % self.sitio).save()
+
+                # Escuchar Modbus IP en un puerto dado
+                escucharModbusIP(self.factory.clients[id(self)])
             except Sitio.DoesNotExist:
                 print "El sitio %s no existe en la base de datos." % sitio
                 deferToThread(Evento(tipo='A', texto="El sitio %s no existe en la base de datos." % sitio).save)
@@ -821,10 +824,11 @@ from operator import itemgetter
 
 class MyDataBlock(ModbusSequentialDataBlock):
     
-    def __init__(self, tipo, address=None, values=None):
+    def __init__(self, tipo, clientdata, address=None, values=None):
         '''
         Initializes the datastore
         '''
+        self.clientdata = clientdata
         self.tipo = tipo
         self.address = 0
         self.values = [0] * 30 #pymodbus lo usa!
@@ -837,12 +841,16 @@ class MyDataBlock(ModbusSequentialDataBlock):
         print "get", self.tipo, address, count
         res = []
         # Seleccionando a mano los datos para el sitio SJR
-        data = [c for c in factory.clients.values() if c['sitio'].ccc == 'SJR'][0]['last']
-        for mbdir in sorted(data.keys()):
-            items = data[mbdir]
-            #                      [ea1. ea2, ea3... ea10]
-            p = [por10(y) for y in [items.get(self.tipo + str(i), -1) for i in range(1,11)]] # registros ordenados
-            res.extend(p)
+        data = self.clientdata['last']
+        for robot in self.clientdata['self'].sitio.robot_set.order_by('mbdir').all():#sorted(data.keys()):
+            mbdir = robot.mbdir
+            items = data.get(mbdir)
+            if items:
+                #                      [ea1. ea2, ea3... ea10]
+                p = [por10(y) for y in [items.get(self.tipo + str(i), -1) for i in range(1,11)]] # registros ordenados
+                res.extend(p)
+            else:   # si un robot no reporto datos, completar sus registros con -1
+                res.extend([-1] * 10)
         print res[address:address+count]            
         return res[address:address+count]            
     
@@ -857,22 +865,26 @@ class MyDataBlock(ModbusSequentialDataBlock):
         else:
             value = value / 10
         print "disp", disp, "reg", reg, "value", value
-        client = [c for c in factory.clients.values() if c['sitio'].ccc == 'SJR'][0]['self']
+        
         if self.tipo == 're':
-            factory.writeBuffer[id(client)] = (WR, disp, reg, value)
-            #client.ask_write_reg(disp, reg, value)
+            factory.writeBuffer[id(self.clientdata['self'])] = (WR, disp, reg, value)
         elif self.tipo == 'sd':
-            #client.ask_write_bob(disp, reg, value)
-            factory.writeBuffer[id(client)] = (WB, disp, reg, value)
+            factory.writeBuffer[id(self.clientdata['self'])] = (WB, disp, reg, value)
         print "Fin del set"            
-    
-context = ModbusServerContext(d=MyDataBlock('ed'),
-                              c=MyDataBlock('sd'),
-                              i=MyDataBlock('ea'),
-                              h=MyDataBlock('re'))
-# Hacer una vez por cliente G24 contectado
-reactor.listenTCP(502, ModbusServerFactory(context))
-_logger.setLevel(logging.DEBUG)
+
+
+modbuses = []
+def escucharModbusIP(clientdata):
+    print "Empezando a escuchar" *3
+    context = ModbusServerContext(d=MyDataBlock('ed', clientdata),
+                                  c=MyDataBlock('sd', clientdata),
+                                  i=MyDataBlock('ea', clientdata),
+                                  h=MyDataBlock('re', clientdata))
+    mbfactory = ModbusServerFactory(context)
+    modbuses.append(mbfactory)
+    reactor.listenTCP(clientdata['sitio'].port, mbfactory)
+    print "Abierto el puerto", clientdata['sitio'].port
+    _logger.setLevel(logging.DEBUG)
 
 # Que empiece la fiesta
 reactor.run()
