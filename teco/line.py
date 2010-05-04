@@ -46,7 +46,7 @@ class TModBus(LineOnlyReceiver):
     def connectionMade(self):
         #self.factory.clients.append(self)
         self.state = IDLE
-        self.factory.clients[id(self)] = {'self': self, 'sitio': None, 'last': {}}
+        self.factory.clients[id(self)] = {'self': self, 'sitio': None}
         self.peer = self.transport.getPeer()
         print "Nuevo cliente: %s:%d" % (self.peer.host, self.peer.port) #LOG
         print "Total: %d" % (len(self.factory.clients),)
@@ -54,6 +54,8 @@ class TModBus(LineOnlyReceiver):
     
     def connectionLost(self, reason):
         if id(self) in self.factory.clients:
+            #if self.factory.clients[id(self)]['mbport']:
+            #    self.factory.clients[id(self)]['mbport'].loseConnection()
             del self.factory.clients[id(self)]
         else:
             print "El cliente ya fue eliminado."
@@ -85,6 +87,8 @@ class TModBus(LineOnlyReceiver):
                     print "%s ya estaba conectado. Borrando anterior." % sitio
                     deferToThread(Evento(tipo='W', texto="%s ya estaba conectado. Borrando anterior." % sitio).save)
                     self.factory.clients[k]['self'].transport.loseConnection()
+                    #if self.factory.clients[id(self)]['mbport']:
+                    #    self.factory.clients[id(self)]['mbport].loseConnection()
                     del self.factory.clients[k] #move(sitios[sitio])
                     break
             try:
@@ -93,7 +97,9 @@ class TModBus(LineOnlyReceiver):
                 Evento(tipo='I', texto="Se conecto el sitio %s" % self.sitio).save()
 
                 # Escuchar Modbus IP en un puerto dado
-                escucharModbusIP(self.factory.clients[id(self)])
+                #self.factory.clients[id(self)]['mbport'] = escucharModbusIP(self.sitio)
+                modbustab[self.sitio.ccc] = ({}, id(self), self.sitio)
+                escucharModbusIP(self.sitio.ccc)
             except Sitio.DoesNotExist:
                 print "El sitio %s no existe en la base de datos." % sitio
                 deferToThread(Evento(tipo='A', texto="El sitio %s no existe en la base de datos." % sitio).save)
@@ -135,7 +141,8 @@ class TModBus(LineOnlyReceiver):
         if m:
             try:
                 d = m.groupdict()
-                factory.clients[id(self)]['last'][robot.mbdir] = d
+                modbustab[self.sitio.ccc][0][disp] = d
+                #fctory.clients[id(self)]['last'][robot.mbdir] = d
                 d['robot'] = robot
                 v = Valor(**d)
                 v.save()
@@ -822,13 +829,14 @@ def por10(x):
 
 from operator import itemgetter
 
+modbustab = {}  # clave ccc, valor tupla (ultimosdatos, id protocolo, sitio)
 class MyDataBlock(ModbusSequentialDataBlock):
     
-    def __init__(self, tipo, clientdata, address=None, values=None):
+    def __init__(self, tipo, ccc, address=None, values=None):
         '''
         Initializes the datastore
         '''
-        self.clientdata = clientdata
+        self.ccc = ccc
         self.tipo = tipo
         self.address = 0
         self.values = [0] * 30 #pymodbus lo usa!
@@ -840,10 +848,11 @@ class MyDataBlock(ModbusSequentialDataBlock):
     def getValues(self, address, count=1):
         print "get", self.tipo, address, count
         res = []
-        # Seleccionando a mano los datos para el sitio SJR
-        data = self.clientdata['last']
-        for robot in self.clientdata['self'].sitio.robot_set.order_by('mbdir').all():#sorted(data.keys()):
-            mbdir = robot.mbdir
+        #data = [x['last'] for x in factory.clients.values() if x.sitio == self.sitio][0]
+        data = modbustab[self.ccc][0]
+        #for robot in self.clientdata['self'].sitio.robot_set.order_by('mbdir').all():#sorted(data.keys()):
+        for robot in modbustab[self.ccc][2].robot_set.order_by('mbdir').all():#sorted(data.keys()):
+            mbdir = int(robot.mbdir)
             items = data.get(mbdir)
             if items:
                 #                      [ea1. ea2, ea3... ea10]
@@ -865,26 +874,76 @@ class MyDataBlock(ModbusSequentialDataBlock):
         else:
             value = value / 10
         print "disp", disp, "reg", reg, "value", value
+
+        c = modbustab[self.ccc][1]
+        if self.tipo == 're':
+            factory.writeBuffer[c] = (WR, disp, reg, value)
+        elif self.tipo == 'sd':
+            factory.writeBuffer[c] = (WB, disp, reg, value)
+        print "Fin del set"            
+
+
+class MyDataBlock2(ModbusSequentialDataBlock):
+    
+    def __init__(self, tipo, clientdata, uid, address=None, values=None):
+        '''
+        Initializes the datastore
+        '''
+        self.uid = uid
+        self.clientdata = clientdata
+        self.tipo = tipo
+        self.address = 0
+        self.values = [0] * 30 #pymodbus lo usa!
+        self.default_value = None
+
+    def checkAddress(self, address, count=1):
+        return True
+    
+    def getValues(self, address, count=1):
+        print "get", self.tipo, address, count
+        res = []
+        # Seleccionando a mano los datos para el sitio SJR
+        data = self.clientdata['last']
+        mbdir = "%02.d" % self.uid
+        items = data.get(mbdir)
+        if items:
+            #                      [ea1. ea2, ea3... ea10]
+            p = [por10(y) for y in [items.get(self.tipo + str(i), -1) for i in range(1,11)]] # registros ordenados
+            res.extend(p)
+        else:   # si un robot no reporto datos, completar sus registros con -1
+            res.extend([-1] * 10)
+        print res[address:address+count]            
+        return res[address:address+count]            
+    
+    def setValues(self, address, values):
+        print "Set Value address", address, "values", values
+        disp, reg = divmod(address, 10)
+        disp += 1
+        reg += 1
+        value = values[0]
+        if type(value) == bool:
+            value = int(value)
+        else:
+            value = value / 10
+        print "disp", disp, "reg", reg, "value", value
         
         if self.tipo == 're':
             factory.writeBuffer[id(self.clientdata['self'])] = (WR, disp, reg, value)
         elif self.tipo == 'sd':
             factory.writeBuffer[id(self.clientdata['self'])] = (WB, disp, reg, value)
         print "Fin del set"            
-
-
-modbuses = []
-def escucharModbusIP(clientdata):
+modbuses = []   # probablemente se deba borrar, ya que solo llena la mem
+def escucharModbusIP(ccc):
     print "Empezando a escuchar" *3
-    context = ModbusServerContext(d=MyDataBlock('ed', clientdata),
-                                  c=MyDataBlock('sd', clientdata),
-                                  i=MyDataBlock('ea', clientdata),
-                                  h=MyDataBlock('re', clientdata))
+    context = ModbusServerContext(d=MyDataBlock('ed', ccc),
+                                  c=MyDataBlock('sd', ccc),
+                                  i=MyDataBlock('ea', ccc),
+                                  h=MyDataBlock('re', ccc))
     mbfactory = ModbusServerFactory(context)
     modbuses.append(mbfactory)
-    reactor.listenTCP(clientdata['sitio'].port, mbfactory)
-    print "Abierto el puerto", clientdata['sitio'].port
-    _logger.setLevel(logging.DEBUG)
+    return reactor.listenTCP(modbustab[ccc][2].port, mbfactory)
+    #print "Abierto el puerto", clientdata['sitio'].port
+    #_logger.setLevel(logging.DEBUG)
 
 # Que empiece la fiesta
 reactor.run()
