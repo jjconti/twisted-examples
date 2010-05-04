@@ -44,6 +44,7 @@ class Sitio(models.Model):
     id = models.IntegerField(primary_key=True, unique=True)
     nombre = models.CharField(max_length=120, blank=True)
     ccc = models.CharField(max_length=9, blank=True)
+    port = models.IntegerField(unique=True)
     class Meta:
         db_table = u'sitios'
 
