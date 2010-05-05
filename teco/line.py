@@ -908,10 +908,10 @@ class MyDataBlock2(ModbusSequentialDataBlock):
         items = data.get(mbdir)
         if items:
             #                      [ea1. ea2, ea3... ea10]
-            p = [por10(y) for y in [items.get(self.tipo + str(i), -1) for i in range(1,11)]] # registros ordenados
+            p = [por10(y) for y in [items.get(self.tipo + str(i), 0) for i in range(1,11)]] # registros ordenados
             res.extend(p)
         else:   # si un robot no reporto datos, completar sus registros con -1
-            res.extend([-1] * 10)
+            res.extend([0] * 10)
         print res[address:address+count]            
         return res[address:address+count]            
     
