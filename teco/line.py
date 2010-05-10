@@ -8,7 +8,7 @@ from twisted.enterprise import adbapi
 from constants import *
 from twisted.python import log
 from twisted.python.logfile import DailyLogFile
-#log.startLogging(DailyLogFile('log.txt', LOGDIR))
+log.startLogging(DailyLogFile('log.txt', LOGDIR))
 from sys import stdout
 #log.startLogging(stdout)
 
@@ -56,6 +56,8 @@ class TModBus(LineOnlyReceiver):
         if id(self) in self.factory.clients:
             #if self.factory.clients[id(self)]['mbport']:
             #    self.factory.clients[id(self)]['mbport'].loseConnection()
+            self.sitio.online = 1
+            self.sitio.save()
             del self.factory.clients[id(self)]
         else:
             print "El cliente ya fue eliminado."
@@ -95,7 +97,8 @@ class TModBus(LineOnlyReceiver):
                 self.sitio = Sitio.objects.get(ccc=sitio)
                 self.factory.clients[id(self)]['sitio'] = self.sitio    #dejar uno solo
                 Evento(tipo='I', texto="Se conecto el sitio %s" % self.sitio).save()
-
+                self.sitio.online = 0
+                self.sitio.save()
                 # Escuchar Modbus IP en un puerto dado
                 #self.factory.clients[id(self)]['mbport'] = escucharModbusIP(self.sitio)
                 modbustab[self.sitio.ccc] = ({}, id(self), self.sitio)
@@ -261,7 +264,7 @@ class TModBusFactory(Factory):
         self.lc.start(20)        
 
 factory = TModBusFactory()
-#reactor.listenTCP(9007, factory)
+reactor.listenTCP(9007, factory)
 reactor.listenTCP(8007, factory)
 
 from twisted.conch import manhole, manhole_ssh
@@ -673,32 +676,39 @@ class TodoPage(LivePage):
 
         
 class IndexPage(rend.Page):
-
+    addSlash = True
 
     def __init__ ( self, *args, **kwargs ):
         rend.Page.__init__ ( self, *args, **kwargs )
 
     def renderHTTP(self, ctx):
         return '<a href="/sitios/">sitios</a><br/><a href="/celu/">celu</a>'
-
+    
+    # En el ejemplo MyPage tenia este metodo pero parece no necesario
+    #def render_isLogged(self, ctx, data):
+    #    return renderHTTP(ctx)
+    
     def child_sitios(self, ctx):
         return SitiosPage()
 
     def child_celu(self, ctx):
         return CeluPage()
-    
-    def child_ter(self, ctx):
-        return TerPage()
 
-    def child_graph(self, ctx):
-        return GraphPage()
+    def child_auth(self, ctx):
+        return authenticatedResource(IndexPage())    
+    #def child_ter(self, ctx):
+    #    return TerPage()
 
-    def child_todo(self, ctx):
-        return TodoPage()
+    #def child_graph(self, ctx):
+    #    return GraphPage()
+
+    #def child_todo(self, ctx):
+    #    return TodoPage()
 
     def child_imgs(self, ctx):
             return static.File(os.path.join(ROOT_PATH, 'imgs')) 
             
+                    
 class SitiosPage(rend.Page):
 
     addSlash = True
@@ -801,10 +811,124 @@ class RobotPage(rend.Page):
         return GraphPage(sitio=self.sitio, robot=self.robot)
 
     def child_control(self, ctx):
-        return TerPage(sitio=self.sitio, robot=self.robot)     
+        return TerPage(sitio=self.sitio, robot=self.robot)
+        #return authenticatedResource(TerPage(sitio=self.sitio, robot=self.robot))
+            
+# Authentication
+from zope.interface import implements
+
+from twisted.cred import portal, checkers, credentials
+ 
+from nevow import inevow, rend, tags, guard, loaders
+ 
+class MyPage(rend.Page):
+    addSlash = True
+    docFactory = loaders.stan(
+    tags.html[
+        tags.head[tags.title["Hi Boy"]],
+        tags.body[
+            tags.invisible(render=tags.directive("isLogged"))[
+                tags.div(pattern="False")[
+                    tags.form(action=guard.LOGIN_AVATAR, method='post')[
+                        tags.table[
+                            tags.tr[
+                                tags.td[ "Username:" ],
+                                tags.td[ tags.input(type='text',name='username') ],
+                            ],
+                            tags.tr[
+                                tags.td[ "Password:" ],
+                                tags.td[ tags.input(type='password',name='password') ],
+                            ]
+                        ],
+                        tags.input(type='submit'),
+                        tags.p,
+                    ]
+                ],
+                tags.invisible(pattern="True")[
+                    tags.h3["Hi bro"],
+                    tags.invisible(render=tags.directive("sessionId")),
+                    tags.br,
+                    tags.a(href=guard.LOGOUT_AVATAR)["Logout"]
+                ]
+            ]
+        ]
+    ])
+ 
+    def __init__(self, avatarId=None):
+        rend.Page.__init__(self)
+        self.avatarId=avatarId
+ 
+    def render_isLogged(self, context, data):
+        q = inevow.IQ(context)
+        true_pattern = q.onePattern('True')
+        false_pattern = q.onePattern('False')
+        if self.avatarId:
+            print "avatar id", self.avatarId
+            #return true_pattern or context.tag().clear()
+            return IndexPage().renderHTTP(context)
+        else:
+            print "sin avatar id"
+            return false_pattern or context.tag().clear()
+ 
+    def render_sessionId(self, context, data):
+        sess = inevow.ISession(context)
+        return context.tag[sess.uid]
+ 
+    def logout(self):
+        print "Bye"
+ 
+### Authentication
+def noLogout():
+    return None
+ 
+ 
+class MyRealm(object):
+    """A simple implementor of cred's IRealm.
+       For web, this gives us the LoggedIn page.
+    """
+ 
+    def __init__(self, page):
+        self.page = page
+
+    implements(portal.IRealm)
+            
+    def requestAvatar(self, avatarId, mind, *interfaces):
+        for iface in interfaces:
+            if iface is inevow.IResource:
+                # do web stuff
+                if avatarId is checkers.ANONYMOUS:
+                    resc = MyPage() # login page
+                    resc.realm = self
+                    return (inevow.IResource, resc, noLogout)
+                else:
+                    #resc = MyPage(avatarId)
+                    resc = self.page
+                    resc.realm = self
+                    return (inevow.IResource, resc, noLogout)
+ 
+        raise NotImplementedError("Can't support that interface.")
+ 
+ 
+### Application setup
+
+def authenticatedResource(page):
+    realm = MyRealm(page)
+    porta = portal.Portal(realm)
+
+    myChecker = checkers.InMemoryUsernamePasswordDatabaseDontUse()
+    myChecker.addUser("user","pass")
+    myChecker.addUser("fred", "flintstone")
+    porta.registerChecker(checkers.AllowAnonymousAccess(), credentials.IAnonymous)
+    porta.registerChecker(myChecker)
+    res = guard.SessionWrapper(porta)
+    
+    return res
+
+# end Autenticacion
             
 from nevow import appserver
 site = appserver.NevowSite(IndexPage())
+#site = appserver.NevowSite(authenticatedResource(IndexPage()))
 reactor.listenTCP(8009, site)
 reactor.listenTCP(8080, site)
 
@@ -816,9 +940,10 @@ reactor.listenTCP(8080, site)
 #print rendered
 
 # Modbus
-from pymodbus.server.async import ModbusServerFactory, _logger
+from pymodbus.server.async import ModbusServerFactory2, ModbusServerFactory, _logger
 from pymodbus.datastore import ModbusServerContext, ModbusSequentialDataBlock
 import logging
+from pymodbus.mexceptions import ConnectionException
 
 from decimal import Decimal as D
 def por10(x):
@@ -882,15 +1007,20 @@ class MyDataBlock(ModbusSequentialDataBlock):
             factory.writeBuffer[c] = (WB, disp, reg, value)
         print "Fin del set"            
 
-
-class MyDataBlock2(ModbusSequentialDataBlock):
+class AdminDataBlock(ModbusSequentialDataBlock):
+    '''
+    Representa si los robots estan o no en linea.
+    0: on line
+    1: off line
     
-    def __init__(self, tipo, clientdata, uid, address=None, values=None):
+    dir 0: G24
+    dir 1....: robots
+    '''
+    
+    def __init__(self, tipo, address=None, values=None):
         '''
         Initializes the datastore
         '''
-        self.uid = uid
-        self.clientdata = clientdata
         self.tipo = tipo
         self.address = 0
         self.values = [0] * 30 #pymodbus lo usa!
@@ -900,49 +1030,99 @@ class MyDataBlock2(ModbusSequentialDataBlock):
         return True
     
     def getValues(self, address, count=1):
+        '''
+        address 1 es al sitio que escucha modbus en el 501
+        '''
         print "get", self.tipo, address, count
         res = []
-        # Seleccionando a mano los datos para el sitio SJR
-        data = self.clientdata['last']
-        mbdir = "%02.d" % self.uid
+        if self.tipo == 'ed':
+            for x in range(address, address + count):
+                sitio = Sitio.objects.get(port=x + 500)
+                print sitio.ccc, sitio.online
+                res.append(sitio.online)
+        return res
+    
+    def setValues(self, address, values):
+        print "Set Value address", address, "values", values
+
+class MyDataBlock2(ModbusSequentialDataBlock):
+    
+    def __init__(self, tipo, ccc, uid, address=None, values=None):
+        '''
+        Initializes the datastore
+        '''
+        self.uid = uid
+        self.ccc = ccc
+        self.tipo = tipo
+        self.address = 0
+        self.values = [0] * 30 #pymodbus lo usa!
+        self.default_value = None
+
+    def checkAddress(self, address, count=1):
+        return True
+    
+    def getValues(self, address, count=1):
+        print "get", self.tipo, address, count, 'robot', self.uid
+        data = modbustab[self.ccc][0]
+        mbdir = self.uid
         items = data.get(mbdir)
         if items:
             #                      [ea1. ea2, ea3... ea10]
-            p = [por10(y) for y in [items.get(self.tipo + str(i), 0) for i in range(1,11)]] # registros ordenados
-            res.extend(p)
+            res = [por10(y) for y in [items.get(self.tipo + str(i), 0) for i in range(1,11)]] # registros ordenad
         else:   # si un robot no reporto datos, completar sus registros con -1
-            res.extend([0] * 10)
+            #res = [0] * 10
+            raise ConnectionException("Cliente no conectado")
+        
         print res[address:address+count]            
         return res[address:address+count]            
     
     def setValues(self, address, values):
         print "Set Value address", address, "values", values
-        disp, reg = divmod(address, 10)
-        disp += 1
-        reg += 1
+        disp = self.uid
+        reg = address
+
         value = values[0]
         if type(value) == bool:
             value = int(value)
         else:
             value = value / 10
         print "disp", disp, "reg", reg, "value", value
-        
+        c = modbustab[self.ccc][1]
         if self.tipo == 're':
-            factory.writeBuffer[id(self.clientdata['self'])] = (WR, disp, reg, value)
+            factory.writeBuffer[c] = (WR, disp, reg, value)
         elif self.tipo == 'sd':
-            factory.writeBuffer[id(self.clientdata['self'])] = (WB, disp, reg, value)
+            factory.writeBuffer[c] = (WB, disp, reg, value)
         print "Fin del set"            
 modbuses = []   # probablemente se deba borrar, ya que solo llena la mem
+
+
+print "Levantando interfaz Modbus IP de mantenimiento"
+
+context = ModbusServerContext(d=AdminDataBlock('ed'),
+                              c=AdminDataBlock('sd'),
+                              i=AdminDataBlock('ea'),
+                              h=AdminDataBlock('re'))
+mbfactory = ModbusServerFactory(context)
+modbuses.append(mbfactory)
+reactor.listenTCP(500, mbfactory)
+
 def escucharModbusIP(ccc):
     print "Empezando a escuchar" *3
-    context = ModbusServerContext(d=MyDataBlock('ed', ccc),
-                                  c=MyDataBlock('sd', ccc),
-                                  i=MyDataBlock('ea', ccc),
-                                  h=MyDataBlock('re', ccc))
-    mbfactory = ModbusServerFactory(context)
+    
+    context1 = ModbusServerContext(d=MyDataBlock2('ed', ccc, 1),
+                                  c=MyDataBlock2('sd', ccc, 1),
+                                  i=MyDataBlock2('ea', ccc, 1),
+                                  h=MyDataBlock2('re', ccc, 1))
+    
+    context2 = ModbusServerContext(d=MyDataBlock2('ed', ccc, 2),
+                                  c=MyDataBlock2('sd', ccc, 2),
+                                  i=MyDataBlock2('ea', ccc, 2),
+                                  h=MyDataBlock2('re', ccc, 2))
+    
+    mbfactory = ModbusServerFactory2({1: context1, 2: context2})
     modbuses.append(mbfactory)
     return reactor.listenTCP(modbustab[ccc][2].port, mbfactory)
-    #print "Abierto el puerto", clientdata['sitio'].port
+    
     #_logger.setLevel(logging.DEBUG)
 
 # Que empiece la fiesta
