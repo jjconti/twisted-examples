@@ -45,6 +45,7 @@ class Sitio(models.Model):
     nombre = models.CharField(max_length=120, blank=True)
     ccc = models.CharField(max_length=9, blank=True)
     port = models.IntegerField(unique=True)
+    online = models.IntegerField() #0: online 1: error
     class Meta:
         db_table = u'sitios'
 
@@ -93,6 +94,7 @@ class Robot(models.Model):
     observaciones = models.TextField(blank=True)
     sitio = models.ForeignKey(Sitio, null=True, db_column='sitio', blank=True)
     last_valor = models.ForeignKey('Valor', null=True, blank=True, db_column='last_valor', related_name='Valor.robot')
+    online = models.IntegerField() #0: online 1: error
     
     class Meta:
         db_table = u'robots'

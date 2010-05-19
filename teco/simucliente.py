@@ -10,10 +10,12 @@ import random
 class CModBus(LineOnlyReceiver):
 
     def connectionMade(self):
+        self.saludo = False
         # Saludo inicial
         sitio = raw_input("Ingresar CDL (3 letras): ")
         sitio = (sitio + 'JJC')[:3].upper()
         self.sendLine(":0090" + sitio + "00")
+        self.saludo = True
         
     def lineReceived(self, line):
         print line
@@ -34,7 +36,7 @@ class CModBus(LineOnlyReceiver):
             
     def sendLine(self, line):
         print 'S: ' + line
-        LineOnlyReceiver.sendLine(self, line)        
+        if not self.saludo: LineOnlyReceiver.sendLine(self, line)        # Saludo y nada m?s para no hacer tanto ruido
  
 class CModBusFactory(ClientFactory):
     

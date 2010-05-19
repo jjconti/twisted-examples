@@ -17,5 +17,5 @@ LOGDIR = '/home/juanjo/python/twisted/teco/logs'
 
 IDLE, WAITING = range(2)
 
-#ROOT_PATH = '/home/juanjo/python/twisted/teco/'
-ROOT_PATH = 'D:\escr\line'
+ROOT_PATH = '/home/juanjo/python/twisted/teco/'
+#ROOT_PATH = 'D:\escr\line'

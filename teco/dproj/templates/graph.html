@@ -10,6 +10,16 @@
                               {% endfor %}                            
     </p>
     <div name="placeholder" style="width:900px;height:250px"></div>
+    <p id="hoverdata">
+    Mouse hovers at (
+    <span name="x">0.0</span>
+    ,
+    <span name="y">0.0</span>
+    ).
+    <span name="clickdata"></span>
+    </p>
+    <p><input name="enableTooltip" type="checkbox"/>Enable tooltip</p>
+
     <p name="choices2">Mostrar:{% for c in digitales %}
                               <input type="checkbox" name="{{ c.tipoio.campo }}" 
                               checked="checked">

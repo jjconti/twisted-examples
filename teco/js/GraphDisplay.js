@@ -44,7 +44,9 @@ GraphDisplay.GraphWidget.methods(
 
          var options = { legend: { noColumns: 2 }, 
                          yaxis: { max: 50, min: 0 },  
-                         xaxis: { max: 275, min: 0 }}
+                         xaxis: { max: 275, min: 0 },
+                         grid: { hoverable: true, clickable: true },
+                       }
 
         
          var options2 = { legend: { noColumns: 2 }, 
@@ -111,8 +113,59 @@ GraphDisplay.GraphWidget.methods(
         });
         // Crear grafico
         self.plot = $.plot($("[name=placeholder]"), data, options);
-        self.plot2 = $.plot($("[name=placeholder2]"), data2, options2);    
-    
+        self.plot2 = $.plot($("[name=placeholder2]"), data2, options2);
+        
+    // Mouse Over y Mouse Click
+        
+    function showTooltip(x, y, contents) {
+        $('<div name="tooltip">' + contents + '</div>').css( {
+            position: 'absolute',
+            display: 'none',
+            top: y + 5,            
+            left: x + 5,
+            border: '1px solid #fdd',
+            padding: '2px',
+            'background-color': '#fee',
+            opacity: 0.80
+        }).appendTo("body").fadeIn(200);
+    }
+
+    // mouse over
+    var previousPoint = null;
+
+    $("[name=placeholder]").bind("plothover", function (event, pos, item) {
+        $("[name=x]").text(pos.x.toFixed(2));
+        $("[name=y]").text(pos.y.toFixed(2));
+
+        if ($("input[name=enableTooltip]:checked").length > 0) {
+            if (item) {
+                if (previousPoint != item.datapoint) {
+                    previousPoint = item.datapoint;
+                    
+                    $("[name=tooltip]").remove();
+                    var x = item.datapoint[0].toFixed(2),
+                        y = item.datapoint[1].toFixed(2);
+                    
+                    showTooltip(item.pageX, item.pageY,
+                                item.series.label + " of " + x + " = " + y);
+                }
+            }
+            else {
+                $("[name=tooltip]").remove();
+                previousPoint = null;            
+            }
+        }
+    }
+    );
+
+    // mouse click
+    $("[name=placeholder]").bind("plotclick", function (event, pos, item) {
+        if (item) {
+            $("[name=clickdata]").text("You clicked point " + item.dataIndex + " in " + item.series.label + ".");
+            plot.highlight(item.series, item.datapoint);
+        }
+    });
+
     },
         
     function saludar(self, msg){
@@ -170,32 +223,5 @@ GraphDisplay.GraphWidget.methods(
                 v.data = [[self.tick, data[k]]];
             });            
         }        
-    },
-    
-    function nuevoValor(self, data) {
-        var valores = data.split(',');
-        var i = 0;
-        $.each(self.datasets, function(k, v){
-            v.data.push([self.tick,valores[i]]);
-            i++;
-        });
-        $.each(self.datasets2, function(k, v){
-            v.data.push([self.tick, v[valores[i]]]);    // v[0] o v[1]
-            i++;
-        });
-        self.doPlot();
-        self.tick++;
-        if (self.tick > 275){
-            self.tick = 0;
-            $.each(self.datasets, function(k, v){
-                v.data = [[self.tick,valores[i]]];
-                i++;
-            });
-            $.each(self.datasets2, function(k, v){
-                v.data = [[self.tick,valores[i]]];
-                i++;
-            });            
-        }        
-    }
+    }  
 );
-

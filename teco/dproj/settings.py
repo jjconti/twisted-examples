@@ -11,9 +11,10 @@ MANAGERS = ADMINS
 
 DATABASE_ENGINE = 'mysql'           # 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
 DATABASE_NAME = 'kimera_kimera'             # Or path to database file if using sqlite3.
-DATABASE_USER = 'kimera'             # Not used with sqlite3.
-DATABASE_PASSWORD = 'kimera'         # Not used with sqlite3.
-DATABASE_HOST = '10.0.0.10'             # Set to empty string for localhost. Not used with sqlite3.
+DATABASE_USER = 'root'             # Not used with sqlite3.
+DATABASE_PASSWORD = 'root'         # Not used with sqlite3.
+DATABASE_HOST = 'localhost'             # Set to empty string for localhost. Not used with sqlite3.
+#DATABASE_HOST = 'gepeluis.no-ip.org'
 DATABASE_PORT = '3306'             # Set to empty string for default. Not used with sqlite3.
 
 # Local time zone for this installation. Choices can be found here:
@@ -69,8 +70,9 @@ TEMPLATE_DIRS = (
     # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
     # Always use forward slashes, even on Windows.
     # Don't forget to use absolute paths, not relative paths.
-    #'/home/juanjo/python/twisted/teco/dproj/templates',
-    'C:/Documents and Settings/Teco2006/Escritorio/line/dproj/templates',
+    #
+    '/home/juanjo/python/twisted/teco/dproj/templates',
+    #'C:/Documents and Settings/Teco2006/Escritorio/line/dproj/templates',
 )
 
 INSTALLED_APPS = (
