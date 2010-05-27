@@ -46,6 +46,7 @@ class TModBus(LineOnlyReceiver):
     def connectionMade(self):
         #self.factory.clients.append(self)
         self.state = IDLE
+        self.delayedCall = None
         self.factory.clients[id(self)] = {'self': self, 'sitio': None}
         self.peer = self.transport.getPeer()
         print "Nuevo cliente: %s:%d" % (self.peer.host, self.peer.port) #LOG
@@ -143,25 +144,33 @@ class TModBus(LineOnlyReceiver):
         print r.mascara
         print r.id
         mascaras[r.id] = re.compile(str(r.mascara.strip()))
+        
     def process_read(self, disp, body):
-        print "llego dato process_read", disp
+        print "Se recibieron datos de ", disp
         robot = factory.clients[id(self)]['sitio'].robot_set.get(mbdir=disp)
-        print "se recibe mensaje de robot", robot
         m = TModBus.mascaras[robot.tipo.id].match(body)
         if m:
         
             d = m.groupdict()
             #modbustab[self.sitio.ccc][0][disp] = d
             #fctory.clients[id(self)]['last'][robot.mbdir] = d
-            print "se llamara a new data"
-            mbproxy.new_data(self.sitio.ccc, disp, d)
+            self.state = IDLE
+            try:
+                self.delayedCall.cancel()
+            except Exception, e:
+                print e
+            else:
+                mbproxy.new_data(self.sitio.ccc, disp, d)
+            
+            # Otras acciones con los datos    
             d['robot'] = robot
             try:
                 v = Valor(**d)
                 v.save()
                 print "Guradado en al BD", self.sitio, disp, d
             except Exception, e:
-                print "Error al intentar guardar los datos en la BD.", e
+                #print "Error al intentar guardar los datos en la BD.", e
+                pass    #BORRAR
 
             sitio = factory.clients[id(self)]['sitio']
             
@@ -183,7 +192,7 @@ class TModBus(LineOnlyReceiver):
                     #g.callRemote("nuevoValor", u",".join([v.ea1, v.ea2, v.ea3, v.ea4, v.re1, v.re2,
                     #                                  v.re3, v.re4, v.sd1, v.sd2, v.sd3, v.sd4]))
                     g.callRemote('nuevoValor2', j)
-            self.state = IDLE
+
             
     def process_write_reg(self, disp, body):
         robot = factory.clients[id(self)]['sitio'].robot_set.get(mbdir=disp)
@@ -199,7 +208,16 @@ class TModBus(LineOnlyReceiver):
             print "Error en el registro %s" % (reg,)
         elif err == ERRVAL:
             print "Error en el valor %s" % (val,)
-
+                
+        # LIBERAR CANAL
+        self.state = IDLE
+        try:
+            self.delayedCall.cancel()
+        except Exception, e:
+            print e
+        #else:
+        #    mbproxy.new_data(self.sitio.ccc, disp, None)
+                        
         if lectores.get(robot):
             for l in lectores[robot].values():
                 if err == NOERR:
@@ -213,15 +231,23 @@ class TModBus(LineOnlyReceiver):
         self.sendLine(':%02d%d%02d' % (disp, ID, LR))
     
     def ask_read(self, disp):
-        print "enviando un read"*2
         self.sendLine(':%02d%d%02d' % (disp, RD, LR))
         self.state = WAITING
+        self.delayedCall = reactor.callLater(10, self.checkOcupacionCanal, disp)
 
+    def checkOcupacionCanal(self, disp):
+        if self.state == WAITING:
+            print "Liberando el canal"
+            self.state = IDLE
+            mbproxy.timeout(self.sitio.ccc, disp)
+            
     def ask_write_reg(self, disp, reg, val):
         print "Se cambiara el reg", reg, "valor", val
         line = ':%02d%d%02d%02d%02d' % (disp, WR, reg, val, LR)
         print "Enviando: %s" % line
         self.sendLine(line)
+        self.state = WAITING
+        self.delayedCall = reactor.callLater(10, self.checkOcupacionCanal, disp)
             
     def ask_write_bob(self, disp, bob, val):
         if val not in (0,1):
@@ -230,15 +256,15 @@ class TModBus(LineOnlyReceiver):
         line = ':%02d%d%02d%d%02d' % (disp, WB, bob, val, LR)
         print "Enviando: %s" % line
         self.sendLine(line)
-        
+        self.state = WAITING
+        self.delayedCall = reactor.callLater(10, self.checkOcupacionCanal, disp)
+
 class TModBusFactory(Factory):
     protocol = TModBus
     writeBuffer = {}    # clave prolocolo, valor triplete para ask_write_reg
     
     def get_protocol(self, ccc):
-        print "antes de la list comprehension"
         s = [x['self'] for x in self.clients.values() if x['sitio'].ccc == ccc]
-        print "paso ok list comprehension"
         if len(s) == 1:
             return s[0]
         else:
@@ -275,7 +301,7 @@ class TModBusFactory(Factory):
                 
     def stopFactory(self):
         self.lc.stop()    
-       
+                    
     def __init__(self):
         #self.clients = []
         self.clients = {}
@@ -960,7 +986,7 @@ reactor.listenTCP(8080, site)
 #print rendered
 
 # Modbus
-from pymodbus.server.async import ModbusServerFactory2, ModbusServerFactory, _logger
+from pymodbus.server.async import ModbusServerFactory, _logger
 from pymodbus.datastore import ModbusServerContext, ModbusSlaveContext, ModbusSequentialDataBlock
 import logging
 from pymodbus.mexceptions import ConnectionException
@@ -1000,7 +1026,7 @@ class AdminDataBlock(ModbusSequentialDataBlock):
     def checkAddress(self, address, count=1):
         return True
     
-    def getValues(self, address, count=1, slave=None):
+    def getValues(self, address, count=1):
         '''
         
         '''
@@ -1012,12 +1038,12 @@ class AdminDataBlock(ModbusSequentialDataBlock):
                 if address == 0:
                     res.append(sitio.online)
                 for r in sitio.robot_set.order_by('mbdir').all():
-                    print r.mbdir, r.online
+                    #print r.mbdir, r.online
                     res.append(max(sitio.online, r.online)) # si el sitio no esta on line, tampoco el robot
             d = Deferred()
         except Exception,e:
-            print e
-        print res, address, count
+            raise e
+        #print res, address, count
         d.callback(res[address:address+count])
         return d    # cambair esto usando maybeDeferred mas afuera
     
@@ -1026,55 +1052,113 @@ class AdminDataBlock(ModbusSequentialDataBlock):
 
 class MyDataBlock1(ModbusSequentialDataBlock):
     
-    def __init__(self, tipo, ccc, uid, address=None, values=None):
+    def __init__(self, tipo, ccc, address=None, values=None):
         '''
         Initializes the datastore
         '''
-        self.uid = uid
         self.ccc = ccc
         self.tipo = tipo
-        self.address = 0
-        self.values = [0] * 30 #pymodbus lo usa!
+        self.address = 0    # last address asked for
+        self.count = 0      # last count asked for
+        self.values = [0] #* 30 #pymodbus lo usa!
         self.default_value = None
-
+        self.fresh = False
+        self.deferred = None
+        
+    def validate(self, address, count=1):
+        return True
+    
     def checkAddress(self, address, count=1):
         return True
     
-    def getValues(self, address, count=1, slave=None):
-        print "get", self.tipo, address, count, 'robot', self.uid
-        data = modbustab[self.ccc][0]
-        mbdir = self.uid
-        items = data.get(mbdir)
-        if items:
-            #                      [ea1. ea2, ea3... ea10]
-            res = [por10(y) for y in [items.get(self.tipo + str(i), 0) for i in range(1,11)]] # registros ordenad
-        else:   # si un robot no reporto datos, completar sus registros con -1
-            #res = [0] * 10
-            raise ConnectionException("Cliente no conectado")
-        
-        print res[address:address+count]            
-        return res[address:address+count]            
+    def getValues(self, address, count=1):
+        '''
+        Nota: simpre empieza por 4|ir|ea
+        Responder enseguida
+        Pero conviene preguntar por la ultima 1 sd o coild status
+        '''
+        print "get", self.tipo, address, count, 'robot', self.context.slave
+        self.address = address
+        self.count = count
+        if self.fresh:
+                print "Tengo datos frescos"
+                #return self.values[address:address+count]   # esto tendria q ser un deferred
+                self.fresh = False
+                d = Deferred()
+                d.callback(self.values[address:address+count])
+                return d
+        elif self.context.esperando and self.context.esperando != self:
+            print "Context esperando"
+            self.context.esperando = False  # Lo fuerzo a q no se quede esperando por un registro
+            #AQUI VA A ENTRAR SIEMPRE Q HAYA PREGUNTAS PARA MAS DE UN REGISTROS
+            #self.context.errores += 1
+            #if self.context.errores > 3:
+                # Poner Robot offline
+                #self.context.setRobotStatus(1)
+                #self.context.esperando = False  #para salir de este bucle
+            # Guardar una ref a d para poder responder
+            d = Deferred()
+            self.deferred = d
+            
+        else:   # debe pedir dato nuevo
+            self.context.esperando = self
+            print "Se piden datos nuevos"
+            d = mbproxy.ask_read_serie(self.ccc, self.context)
+            d.addCallback(self.data_received)
+        return d
     
-    def setValues(self, address, values, slave=None):
-        print "Set Value address", address, "values", values
-        disp = self.uid
-        reg = address
+    def data_received(self, result):
+        # si el resultado es None, se vencion el timeout de la red. El robot no contesto
+        #llenar los otros data blocks
+        ctx = self.context
+        ctx.esperando = False
+        if result is None:
+            ctx.addError()
+        else:
+            #poner robot on line
+            self.context.cleanErrors()
+            
+        for b in [ctx.di, ctx.co, ctx.ir, ctx.hr]:
+            b.addFreshData(result)
+            if b == self:
+                self.fresh = False  # a continuacion se enviaran los datos
+            
+        #contestar // return [address:count]
+        
+        #retornar el result
+        return self.values[self.address:self.address+self.count]         
+    
+    def addFreshData(self, result):
+        if result:
+            try:
+                self.values = [por10(y) for y in [result.get(self.tipo + str(i), 0) for i in range(1,11)]]
+                self.fresh = True
+            except e:
+                print "Ocurrio una excepcion al cargar datos frescos", e
+                return
+            
+        if self.deferred:
+            try:
+                self.deferred.callback(self.values[self.address:self.address+self.count])
+                self.fresh = False
+            except:
+                print "Deferred ya llamado"
+        
+    def setValues(self, address, values):
+        reg = address + 1
+        print "Set reg", reg, "values", values  #MANGO ESTA MANDANDO DOS MENSAJES
 
         value = values[0]
         if type(value) == bool:
             value = int(value)
-        else:
-            value = value / 10
-        print "disp", disp, "reg", reg, "value", value
-        c = modbustab[self.ccc][1]
+        print "reg", reg, "value", value
         if self.tipo == 're':
-            factory.writeBuffer[c] = (WR, disp, reg, value)
+            #factory.writeBuffer[c] = (WR, disp, reg, value)
+            mbproxy.ask_write_serie(WR, self.ccc, self.context, reg, value)
         elif self.tipo == 'sd':
-            factory.writeBuffer[c] = (WB, disp, reg, value)
-        print "Fin del set"
-        
-
-
+            #factory.writeBuffer[c] = (WB, disp, reg, value)
+            mbproxy.ask_write_serie(WB, self.ccc, self.context, reg, value)
+            
 class MyDataBlock2(ModbusSequentialDataBlock):
     
     def __init__(self, tipo, ccc, address=None, values=None):
@@ -1088,83 +1172,77 @@ class MyDataBlock2(ModbusSequentialDataBlock):
         self.values = [0] #* 30 #pymodbus lo usa!
         self.default_value = None
         self.fresh = False
-
+        self.deferred = None
+        
     def validate(self, address, count=1):
         return True
     
     def checkAddress(self, address, count=1):
         return True
     
-    def getValues(self, address, count=1, slave=None):
+    def getValues(self, address, count=1):
+        '''
+        Nota: simpre empieza por 4|ir|ea
+        Responder enseguida
+        Pero conviene preguntar por la ultima 1 sd o coild status
+        '''
         print "get", self.tipo, address, count, 'robot', self.context.slave
         self.address = address
         self.count = count
-        if self.fresh:
-                print "tengo datos frescos"
-                #return self.values[address:address+count]   # esto tendria q ser un deferred
-                d = Deferred()
-                d.callback(self.values[address:address+count])
-                return d
-        elif self.context.esperando:
-            print "context esperando"
-            self.context.errores += 1
-            if self.context.errores > 3:
-                # Poner Robot offline
-                self.context.setRobotStatus(1)
-                d = None    # que hacemos aca? Se retorna algun Deferred?
-                self.context.esperando = False  #para salir de este bucle
-        else:   # debe pedir dato nuevo
-            self.context.esperando = True
-            print "pedir de nuevo"
-            d = mbproxy.ask_read_serie(self.ccc, self.context.slave)
-            print "luego de ask_read_serie"
-            d.addCallback(self.data_received)
+
+        print "Siempre Tengo datos frescos"
+        #return self.values[address:address+count]   # esto tendria q ser un deferred
+        self.fresh = False
+        d = Deferred()
+        d.callback(self.values[address:address+count])
+        
+        if self.tipo == 'sd':
+            print "Se piden datos nuevos"
+            o = mbproxy.ask_read_serie(self.ccc, self.context)
+            o.addCallback(self.data_received)
+        
         return d
     
     def data_received(self, result):
-        print "data recibida"*3
+        # si el resultado es None, se vencion el timeout de la red. El robot no contesto
         #llenar los otros data blocks
         ctx = self.context
-        ctx.esperando = False
+        if result is None:
+            ctx.addError()
+        else:
+            #poner robot on line
+            self.context.cleanErrors()
+            
         for b in [ctx.di, ctx.co, ctx.ir, ctx.hr]:
             b.addFreshData(result)
-            if b == self:
-                self.fresh = False  # a continuacion se enviaran los datos
-            
-        #contestar // return [address:count]
-        
-        #poner robot on line
-        self.context.setRobotStatus(0)
-        #retornar el result
-        return self.values[self.address:self.address+self.count]         
+
+        print "Datos refrescados para todos los tipos de registros"
     
     def addFreshData(self, result):
-        try:
-            self.values = [por10(y) for y in [result.get(self.tipo + str(i), 0) for i in range(1,11)]]
-        except e:
-            print "Ocurrio una excepcion al cargar datos frescos", e
-            return
-        self.fresh = True
+        if result:
+            try:
+                self.values = [por10(y) for y in [result.get(self.tipo + str(i), 0) for i in range(1,11)]]
+            except e:
+                print "Ocurrio una excepcion al cargar datos frescos", e
+                return
         
-    def setValues(self, address, values, slave=None):
-        print "antes del set value"
-        print "Set Value address", address, "values", values
-        disp = self.uid
-        reg = address
+    def setValues(self, address, values):
+        reg = address + 1
+        print "Set reg", reg, "values", values  #MANGO ESTA MANDANDO DOS MENSAJES
 
         value = values[0]
         if type(value) == bool:
             value = int(value)
-        else:
-            value = value / 10
-        print "disp", disp, "reg", reg, "value", value
-        c = modbustab[self.ccc][1]
+        print "reg", reg, "value", value
         if self.tipo == 're':
-            factory.writeBuffer[c] = (WR, disp, reg, value)
+            #factory.writeBuffer[c] = (WR, disp, reg, value)
+            mbproxy.ask_write_serie(WR, self.ccc, self.context, reg, value)
         elif self.tipo == 'sd':
-            factory.writeBuffer[c] = (WB, disp, reg, value)
-        print "Fin del set"
-        
+            #factory.writeBuffer[c] = (WB, disp, reg, value)
+            mbproxy.ask_write_serie(WB, self.ccc, self.context, reg, value)
+
+
+
 modbuses = {}
 
 class RobotContext(ModbusSlaveContext): #Slave
@@ -1181,15 +1259,24 @@ class RobotContext(ModbusSlaveContext): #Slave
         self.slave = kwargs.get('slave')
         self.sitio = kwargs.get('sitio')
         
+    def addError(self):
+        self.errores += 1
+        if self.errores > 3:
+            self.setRobotStatus(1)  # robot offline
+    
+    def cleanErrors(self):
+        self.errores = 0
+        self.setRobotStatus(0)
+        
     def setRobotStatus(self, status):
         '''
         Set the asociated robot offline.
         '''
         r = self.sitio.robot_set.get(mbdir=self.slave)
-        if r.onlie != status:
+        if r.online != status:
             r.online = status
             r.save()
-        print "se cambio robot a ", status
+            print "se cambio robot a ", status
 
 print "Levantando interfaz Modbus IP de mantenimiento"
 
@@ -1211,7 +1298,7 @@ reactor.listenTCP(500, mbfactory)
         
 def escucharModbusIP(sitio):
     ccc = sitio.ccc
-    print "Empezando a escuchar" * 3
+    print "Empezando a escuchar Mosbus IP " * 3, ccc
     
     if ccc not in modbuses.keys(): 
         stores = {}
@@ -1231,58 +1318,103 @@ def escucharModbusIP(sitio):
 
 # Clase que comunica el mundo Modbus IP de Mango con el mundo Modbus Serie via GPRS
 
-from Queue import Queue
+from Queue import Queue, Empty
 
 class MBProxy(object):
     
     def __init__(self):
         #sitios = [x.sitio for x in factory.clients if getattr(x, sitio)]
         #elf.protocols_busy = dict.fromkeys(sitios, False)
-        q = {}
         #for s in sitios:
         #    q[s.ccc] = dict.fromkeys([r.mbdir for r in s.robot_set], Queue())
-        self.protocols_q = q
+        self.actual_d = None
+        self.read_q = {}
+        self.write_q = {}
  
         # Hacer algo para que los sitios nuevos se incorporen...
     
     def new_sitio(self, sitio):
         print "Nuevo sitio registrado en MBProxy", sitio.ccc
-        self.protocols_q[sitio.ccc] = dict.fromkeys([r.mbdir for r in sitio.robot_set.all()], Queue())
+        self.read_q[sitio.ccc] = Queue() #dict.fromkeys([r.mbdir for r in sitio.robot_set.all()], Queue())
+        self.write_q[sitio.ccc] = Queue()
         
     def del_sitio(self, sitio):
         print "Sitio eliminado en MBProxy", sitio.ccc
-        del self.protocols_q[sitio.ccc]
-        
-    def ask_read_serie(self, ccc, slave):
+        del self.read_q[sitio.ccc]
+        del self.write_q[sitio.ccc]
+
+    def ask_write_serie(self, tipo, ccc, ctx, reg, valor):
+        print "ask write serieeeeeeeeeeeeeeeeeeeee"
+        slave = ctx.slave
+        #d = Deferred()
+        p = factory.get_protocol(ccc)
+        if p.state == WAITING:      # el canal del G24 esta ocupado
+            print "waiting asi que vamos a encolar" #   OJO SI DEJA DE RESPONDER, NO SALE DE WAITING
+            print "Elementos en la cola write_q", self.write_q[ccc].qsize()
+            #self.protocols_q[ccc][slave].put(d)
+            self.write_q[ccc].put((tipo, ctx, reg, valor))
+        else:
+            if tipo == WR:
+                p.ask_write_reg(int(ctx.slave), reg, valor)
+                #self.protocols_q[ccc][slave].put(d)
+                #self.write_q[ccc].put((ctx, d))
+                #self.actual_d = (ctx, d, reg, valor)
+            elif tipo == WB:
+                p.ask_write_bob(int(ctx.slave), reg, valor)
+                #self.protocols_q[ccc][slave].put(d)
+                #self.write_q[ccc].put((ctx, d))
+                #self.actual_d = (ctx, d, reg, valor)
+        #return d
+    
+    def ask_read_serie(self, ccc, ctx):
+        slave = ctx.slave
         d = Deferred()
         p = factory.get_protocol(ccc)
         if p.state == WAITING:      # el canal del G24 esta ocupado
-            print "waiting asi que vamos a encolar"
-            print slave
-            print self.protocols_q[ccc][slave]
-            self.protocols_q[ccc][slave].put(d)
+            print "waiting asi que vamos a encolar" #   OJO SI DEJA DE RESPONDER, NO SALE DE WAITING
+            print "Elementos en la cola ", self.read_q[ccc].qsize()
+            #self.protocols_q[ccc][slave].put(d)
+            self.read_q[ccc].put((ctx, d))
         else:            
             p.ask_read(int(slave))
-            self.protocols_q[ccc][slave].put(d)            
+            #self.protocols_q[ccc][slave].put(d)
+            self.actual_d = (ctx, d)
         return d
+    
+    def timeout(self, ccc, slave):
+        self.new_data(ccc, slave, None)
     
     def new_data(self, ccc, slave, result):
         '''
         New data avaliable.
         '''
-        print "el protocolo ejecuta new data"
-        slave =  "%02d" % slave
-        print self.protocols_q[ccc]
-        print slave
-        d = self.protocols_q[ccc][slave]
-        try:
-            d = d.get_nowait()
-        except:
-            print "nada?????"
-        else:            
-            print "deferred obtenido", d
+        print "Se recibe nuevos datos", ccc, slave
+        #slave =  "%02d" % slave
+        if self.actual_d:
+            if len(self.actual_d) == 2: # se espera el resultado de una lectura
+                c,d = self.actual_d
+                if int(c.slave) != int(slave):
+                    print int(c.slave), int(slave)
+                    raise Exception("El dato recibido no corresponde al robot del que se esperaba")
+            #elif len(self.actual_d) == 3:   # se espera el resultado de una escritura
+            #    if int(c.slave) != int(slave):
+            #        print int(c.slave), int(slave)
+            #        raise Exception("El dato recibido no corresponde al robot del que se esperaba")
             if d:
+                print "Se recibio un dato para el slave", slave
                 d.callback(result)
+        #revisar si hay datos encolados para el sitio y mandar
+        try:
+            t,c,r,v = self.write_q[ccc].get_nowait()
+        except:
+            try:
+                c,d = q.get_nowait()
+            except:
+                pass    # no habia nada para este sitio
+            else:
+                self.ask_read_serie(ccc, c)
+        else:   #mandar
+            self.ask_write_serie(t, ccc, c, r, v)
 
 mbproxy = MBProxy()
 
