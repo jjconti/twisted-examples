@@ -108,7 +108,7 @@ class TModBus(LineOnlyReceiver):
                 #self.factory.clients[id(self)]['mbport'] = escucharModbusIP(self.sitio)
                 modbustab[self.sitio.ccc] = {'canal': self} # Ver si todos estos datos se necesitan
                 mbproxy.new_sitio(self.sitio)
-                escucharModbusIP(self.sitio)
+                #escucharModbusIP(self.sitio)
             except Sitio.DoesNotExist:
                 print "El sitio %s no existe en la base de datos." % sitio
                 deferToThread(Evento(tipo='A', texto="El sitio %s no existe en la base de datos." % sitio).save)
@@ -268,7 +268,7 @@ class TModBusFactory(Factory):
         if len(s) == 1:
             return s[0]
         else:
-            raise Exception("El sitio %s no esta en la fabrica" % ccc)
+            print "El sitio %s no esta en la fabrica" % ccc
             
     def paso(self):
         print "Clientes actualmente conectados: ", len(self.clients)
@@ -1208,15 +1208,16 @@ class MyDataBlock2(ModbusSequentialDataBlock):
         #llenar los otros data blocks
         ctx = self.context
         if result is None:
+            print "Error en el robot"
             ctx.addError()
         else:
             #poner robot on line
             self.context.cleanErrors()
             
-        for b in [ctx.di, ctx.co, ctx.ir, ctx.hr]:
-            b.addFreshData(result)
-
-        print "Datos refrescados para todos los tipos de registros"
+            for b in [ctx.di, ctx.co, ctx.ir, ctx.hr]:
+                b.addFreshData(result)
+    
+            print "Datos refrescados para todos los tipos de registros"
     
     def addFreshData(self, result):
         if result:
@@ -1296,10 +1297,10 @@ modbuses['aaa']=mbfactory
 reactor.listenTCP(500, mbfactory)
 
         
-def escucharModbusIP(sitio):
+# No esperar a que se conecten los robots.
+# Empezas a escuchar desde el principio
+for sitio in Sitio.objects.all():
     ccc = sitio.ccc
-    print "Empezando a escuchar Mosbus IP " * 3, ccc
-    
     if ccc not in modbuses.keys(): 
         stores = {}
         for r in sitio.robot_set.all():
@@ -1314,7 +1315,8 @@ def escucharModbusIP(sitio):
         #mbfactory = ModbusServerFactory2(stores)
         mbfactory = ModbusServerFactory(ModbusServerContext(stores, single=False))
         modbuses[ccc] = mbfactory
-        return reactor.listenTCP(sitio.port - 2, mbfactory) # BORRAR EL -2 LUEGO
+        if sitio.port != 500:
+            reactor.listenTCP(sitio.port, mbfactory)
 
 # Clase que comunica el mundo Modbus IP de Mango con el mundo Modbus Serie via GPRS
 
@@ -1348,37 +1350,39 @@ class MBProxy(object):
         slave = ctx.slave
         #d = Deferred()
         p = factory.get_protocol(ccc)
-        if p.state == WAITING:      # el canal del G24 esta ocupado
-            print "waiting asi que vamos a encolar" #   OJO SI DEJA DE RESPONDER, NO SALE DE WAITING
-            print "Elementos en la cola write_q", self.write_q[ccc].qsize()
-            #self.protocols_q[ccc][slave].put(d)
-            self.write_q[ccc].put((tipo, ctx, reg, valor))
-        else:
-            if tipo == WR:
-                p.ask_write_reg(int(ctx.slave), reg, valor)
+        if p:
+            if p.state == WAITING:      # el canal del G24 esta ocupado
+                print "waiting asi que vamos a encolar" #   OJO SI DEJA DE RESPONDER, NO SALE DE WAITING
+                print "Elementos en la cola write_q", self.write_q[ccc].qsize()
                 #self.protocols_q[ccc][slave].put(d)
-                #self.write_q[ccc].put((ctx, d))
-                #self.actual_d = (ctx, d, reg, valor)
-            elif tipo == WB:
-                p.ask_write_bob(int(ctx.slave), reg, valor)
-                #self.protocols_q[ccc][slave].put(d)
-                #self.write_q[ccc].put((ctx, d))
-                #self.actual_d = (ctx, d, reg, valor)
-        #return d
+                self.write_q[ccc].put((tipo, ctx, reg, valor))
+            else:
+                if tipo == WR:
+                    p.ask_write_reg(int(ctx.slave), reg, valor)
+                    #self.protocols_q[ccc][slave].put(d)
+                    #self.write_q[ccc].put((ctx, d))
+                    #self.actual_d = (ctx, d, reg, valor)
+                elif tipo == WB:
+                    p.ask_write_bob(int(ctx.slave), reg, valor)
+                    #self.protocols_q[ccc][slave].put(d)
+                    #self.write_q[ccc].put((ctx, d))
+                    #self.actual_d = (ctx, d, reg, valor)
+            #return d
     
     def ask_read_serie(self, ccc, ctx):
         slave = ctx.slave
         d = Deferred()
         p = factory.get_protocol(ccc)
-        if p.state == WAITING:      # el canal del G24 esta ocupado
-            print "waiting asi que vamos a encolar" #   OJO SI DEJA DE RESPONDER, NO SALE DE WAITING
-            print "Elementos en la cola ", self.read_q[ccc].qsize()
-            #self.protocols_q[ccc][slave].put(d)
-            self.read_q[ccc].put((ctx, d))
-        else:            
-            p.ask_read(int(slave))
-            #self.protocols_q[ccc][slave].put(d)
-            self.actual_d = (ctx, d)
+        if p:
+            if p.state == WAITING:      # el canal del G24 esta ocupado
+                print "waiting asi que vamos a encolar" #   OJO SI DEJA DE RESPONDER, NO SALE DE WAITING
+                print "Elementos en la cola ", self.read_q[ccc].qsize()
+                #self.protocols_q[ccc][slave].put(d)
+                self.read_q[ccc].put((ctx, d))
+            else:            
+                p.ask_read(int(slave))
+                #self.protocols_q[ccc][slave].put(d)
+                self.actual_d = (ctx, d)
         return d
     
     def timeout(self, ccc, slave):
