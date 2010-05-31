@@ -1379,7 +1379,8 @@ class MBProxy(object):
                 print "Elementos en la cola ", self.read_q[ccc].qsize()
                 #self.protocols_q[ccc][slave].put(d)
                 self.read_q[ccc].put((ctx, d))
-            else:            
+            else:
+                print "Se le preguntara al robot", ccc, slave
                 p.ask_read(int(slave))
                 #self.protocols_q[ccc][slave].put(d)
                 self.actual_d = (ctx, d)
@@ -1412,7 +1413,7 @@ class MBProxy(object):
             t,c,r,v = self.write_q[ccc].get_nowait()
         except:
             try:
-                c,d = q.get_nowait()
+                c,d = self.read_q[ccc].get_nowait()
             except:
                 pass    # no habia nada para este sitio
             else:
