@@ -232,6 +232,7 @@ class TModBus(LineOnlyReceiver):
     
     def ask_read(self, disp):
         self.sendLine(':%02d%d%02d' % (disp, RD, LR))
+        print "Estado antse de poner WAITING", self.state
         self.state = WAITING
         self.delayedCall = reactor.callLater(10, self.checkOcupacionCanal, disp)
 
@@ -1194,6 +1195,8 @@ class MyDataBlock2(ModbusSequentialDataBlock):
         #return self.values[address:address+count]   # esto tendria q ser un deferred
         self.fresh = False
         d = Deferred()
+        print self.values
+        print self.values[address:address+count]
         d.callback(self.values[address:address+count])
         
         if self.tipo == 'sd':
@@ -1204,6 +1207,7 @@ class MyDataBlock2(ModbusSequentialDataBlock):
         return d
     
     def data_received(self, result):
+        print "data received", result
         # si el resultado es None, se vencion el timeout de la red. El robot no contesto
         #llenar los otros data blocks
         ctx = self.context
@@ -1329,7 +1333,7 @@ class MBProxy(object):
         #elf.protocols_busy = dict.fromkeys(sitios, False)
         #for s in sitios:
         #    q[s.ccc] = dict.fromkeys([r.mbdir for r in s.robot_set], Queue())
-        self.actual_d = None
+        self.actual_d = {}
         self.read_q = {}
         self.write_q = {}
  
@@ -1339,6 +1343,7 @@ class MBProxy(object):
         print "Nuevo sitio registrado en MBProxy", sitio.ccc
         self.read_q[sitio.ccc] = Queue() #dict.fromkeys([r.mbdir for r in sitio.robot_set.all()], Queue())
         self.write_q[sitio.ccc] = Queue()
+        self.actual_d[sitio.ccc] = None
         
     def del_sitio(self, sitio):
         print "Sitio eliminado en MBProxy", sitio.ccc
@@ -1369,9 +1374,9 @@ class MBProxy(object):
                     #self.actual_d = (ctx, d, reg, valor)
             #return d
     
-    def ask_read_serie(self, ccc, ctx):
+    def ask_read_serie(self, ccc, ctx, deferred=None):
         slave = ctx.slave
-        d = Deferred()
+        d = deferred or Deferred()
         p = factory.get_protocol(ccc)
         if p:
             if p.state == WAITING:      # el canal del G24 esta ocupado
@@ -1383,41 +1388,51 @@ class MBProxy(object):
                 print "Se le preguntara al robot", ccc, slave
                 p.ask_read(int(slave))
                 #self.protocols_q[ccc][slave].put(d)
-                self.actual_d = (ctx, d)
+                print "guardo en actual_d", ctx.slave, d
+                self.actual_d[ccc] = (ctx, d)
+        print "Retornando un Deferred"
         return d
     
     def timeout(self, ccc, slave):
+        print "Time Out!!!"
         self.new_data(ccc, slave, None)
     
     def new_data(self, ccc, slave, result):
         '''
         New data avaliable.
         '''
-        print "Se recibe nuevos datos", ccc, slave
+        if result: print "Se recibe nuevos datos", ccc, slave
+        else: "Se recibio un timeout"
         #slave =  "%02d" % slave
-        if self.actual_d:
-            if len(self.actual_d) == 2: # se espera el resultado de una lectura
-                c,d = self.actual_d
-                if int(c.slave) != int(slave):
-                    print int(c.slave), int(slave)
-                    raise Exception("El dato recibido no corresponde al robot del que se esperaba")
-            #elif len(self.actual_d) == 3:   # se espera el resultado de una escritura
-            #    if int(c.slave) != int(slave):
-            #        print int(c.slave), int(slave)
-            #        raise Exception("El dato recibido no corresponde al robot del que se esperaba")
-            if d:
-                print "Se recibio un dato para el slave", slave
-                d.callback(result)
-        #revisar si hay datos encolados para el sitio y mandar
+        if result:
+            if self.actual_d[ccc]:
+                if len(self.actual_d[ccc]) == 2: # se espera el resultado de una lectura
+                    c,d = self.actual_d[ccc]
+                    if int(c.slave) != int(slave):
+                        print int(c.slave), int(slave)
+                        print "El dato recibido no corresponde al robot del que se esperaba"
+                #elif len(self.actual_d) == 3:   # se espera el resultado de una escritura
+                #    if int(c.slave) != int(slave):
+                #        print int(c.slave), int(slave)
+                #        raise Exception("El dato recibido no corresponde al robot del que se esperaba")
+                if d:
+                    print "Se recibio un dato para el slave", slave
+                    d.callback(result)
+            #revisar si hay datos encolados para el sitio y mandar
+        else:
+            print "actual_d a None"
+            self.actual_d[ccc] = None
+            
         try:
             t,c,r,v = self.write_q[ccc].get_nowait()
         except:
             try:
                 c,d = self.read_q[ccc].get_nowait()
             except:
+                print "No hay valores en la cola read"
                 pass    # no habia nada para este sitio
             else:
-                self.ask_read_serie(ccc, c)
+                self.ask_read_serie(ccc, c, d)
         else:   #mandar
             self.ask_write_serie(t, ccc, c, r, v)
 
