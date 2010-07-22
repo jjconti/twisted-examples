@@ -10,7 +10,7 @@ log.startLogging(DailyLogFile('log.txt', LOGDIR))
 from pymodbus.transaction import ModbusSocketFramer, ModbusAsciiFramer
 from pymodbus.factory import ServerDecoder, ClientDecoder
 
-from queue import Queue
+from collections import deque
 
 socketFramer = ModbusSocketFramer(ServerDecoder())
 asciiFramer = ModbusAsciiFramer(ClientDecoder())
@@ -27,7 +27,7 @@ class TModBus(LineOnlyReceiver):
 
     def connectionMade(self):
         #self.factory.clients.append(self)
-        self.deferreds = Queue()
+        self.deferreds = deque()
         self.state = IDLE
         self.delayedCall = None
         self.factory.clients[id(self)] = {'self': self, 'sitio': None}
@@ -86,27 +86,29 @@ class TModBus(LineOnlyReceiver):
 
     def sendBack(self, response):
         #packet = socketFramer.buildPacket(response)
-        if not self.deferreds.empty():
-            self.deferreds.get().callback(response)
+        if self.deferreds:
+            self.deferreds.popleft().callback(response)
             # Si hay promesas en la cola, sacar y mandar linea
-            if not self.deferreds.empty():
-                self.sendLine(self.deferreds.get().line)
+            if self.deferreds:
+                self.sendLine(self.deferreds.popleft().line)
+            else:
+                self.state = IDLE
         # enviar a Mango
 
     def sendLineWithDeferred(self, line):
         d = Deferred()
         d.line = line
-        self.deferreds.put(d)
+        self.deferreds.append(d)
         if self.state == IDLE:
             self.state = WAITING
             self.sendLine(line)
             self.delayedCall = reactor.callLater(10, self.checkOcupacionCanal)
         return d
 
-    def checkOcupacionCanal(self, disp):
+    def checkOcupacionCanal(self):
         if self.state == WAITING:
             print "Liberando el canal ", self.sitio.ccc
-            self.deferreds.get()
+            self.deferreds.popleft()
             self.state = IDLE
             #mbproxy.timeout(self.sitio.ccc, disp)
 
