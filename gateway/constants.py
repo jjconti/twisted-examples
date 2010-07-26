@@ -12,3 +12,4 @@ ROOT_PATH = '/home/juanjo/python/twisted/teco/'
 #ROOT_PATH = 'D:\escr\line'
 
 SITIOS = {'SFE': 504}
+ROBOTS = {'SFE': 1}

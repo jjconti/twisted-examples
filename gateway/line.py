@@ -1,4 +1,5 @@
 from twisted.protocols.basic import LineOnlyReceiver
+
 from twisted.internet.protocol import Factory
 from twisted.internet import reactor
 
@@ -15,9 +16,15 @@ from collections import deque
 socketFramer = ModbusSocketFramer(ServerDecoder())
 asciiFramer = ModbusAsciiFramer(ClientDecoder())
 slaves = {}
+robots = {}
 
 class Sitio(object):
     pass
+
+class Robot(object):
+    def __init__(self, online=True):
+        self.online = online
+        self.errores = 0
 
 class TModBus(LineOnlyReceiver):
 
@@ -49,32 +56,28 @@ class TModBus(LineOnlyReceiver):
             print "Error en mensaje: no empieza con :"  #EXC
         elif line[3] == '9':   # mensaje del G24 - Saludo inicial
             print "G24 dice: ", line
-            sitio = line[5:8]
-            print "SITIO", sitio
+            ccc = line[5:8]
+            print "SITIO", ccc
             #
             # verificar si ya hay un G24 registrado para ese sitio
             #
             for k,v in self.factory.clients.items():
-                if v['sitio'] and sitio == v['sitio'].ccc:
+                if v['sitio'] and ccc == v['sitio'].ccc:
                     print "%s ya estaba conectado. Borrando anterior." % sitio
                     self.factory.clients[k]['self'].transport.loseConnection()
                     del self.factory.clients[k] #move(sitios[sitio])
                     break
             try:
-                slaves[sitio] = self
-
                 self.sitio = Sitio()
-                self.sitio.ccc =  sitio
-                self.factory.clients[id(self)]['sitio'] = self.sitio
+                self.sitio.ccc =  ccc
                 self.sitio.online = True
+                self.sitio.transport = self
+                slaves[ccc] = self.sitio
+                robots[ccc] = [Robot() for x in range(ROBOTS[ccc])]
+                self.factory.clients[id(self)]['sitio'] = self.sitio
                 self.canal_ocupado = False
-                # Escuchar Modbus IP en un puerto dado
-                # Ver si todos estos datos se necesitan
-                modbustab[self.sitio.ccc] = {'canal': self}
-                #mbproxy.new_sitio(self.sitio)
-                #escucharModbusIP(self.sitio)
-            except Sitio.DoesNotExist:
-                print "El sitio %s no existe en la base de datos." % sitio
+            except Exception:
+                print "El sitio %s no existe en la base de datos." % ccc
         elif line[3] == '6':
             print "G24 dice: ", line
             sitio = line[5:8]
@@ -87,29 +90,36 @@ class TModBus(LineOnlyReceiver):
     def sendBack(self, response):
         #packet = socketFramer.buildPacket(response)
         if self.deferreds:
-            self.deferreds.popleft().callback(response)
+            d = self.deferreds.popleft()
+            d.callback(response)
+            # Poner a 0 los errores del robots
+            robots[self.sitio.ccc][d.unit_id - 1].errores = 0
             # Si hay promesas en la cola, sacar y mandar linea
             if self.deferreds:
-                self.sendLine(self.deferreds.popleft().line)
+                #self.sendLine(self.deferreds.popleft().line)
+                self.sendLine(self.deferreds[0].line)
             else:
                 self.state = IDLE
         # enviar a Mango
 
-    def sendLineWithDeferred(self, line):
+    def sendLineWithDeferred(self, line, unit_id):
         d = Deferred()
         d.line = line
+        d.unit_id = unit_id
         self.deferreds.append(d)
         if self.state == IDLE:
             self.state = WAITING
             self.sendLine(line)
-            self.delayedCall = reactor.callLater(10, self.checkOcupacionCanal)
+            self.delayedCall = reactor.callLater(10, self.checkOcupacionCanal,
+                                                 unit_id)
         return d
 
-    def checkOcupacionCanal(self):
+    def checkOcupacionCanal(self, unit_id):
         if self.state == WAITING:
             print "Liberando el canal ", self.sitio.ccc
             self.deferreds.popleft()
             self.state = IDLE
+            robots[self.sitio.ccc][unit_id - 1].errores += 1
             #mbproxy.timeout(self.sitio.ccc, disp)
 
 class TModBusFactory(Factory):
@@ -148,13 +158,9 @@ def por10(x):
     '''
     return int(D(x) * 10)
 
-modbustab = {}  # clave ccc, valor tupla (ultimosdatos, id protocolo, sitio)
-
 class AdminDataBlock(ModbusSequentialDataBlock):
     '''
     Representa si los robots estan o no en linea.
-    0: on line
-    1: off line
 
     dir 0: G24
     dir 1....: robots
@@ -179,18 +185,16 @@ class AdminDataBlock(ModbusSequentialDataBlock):
         res = []
         try:
             if self.tipo == 'ed':
-                sitio = Sitio.objects.get(port=500+int(self.context.slave))
-                if address == 0:
-                    res.append(sitio.online)
-                for r in sitio.robot_set.order_by('mbdir').all():
+                #if address == 0:
+                res.append(slaves[self.sitio].online)
+                for r in robots[self.sitio]:
                     #print r.mbdir, r.online
-                    errores = modbuses[sitio.ccc].store[r.mbdir].errores
-                    if errores > 3:
-                        robotonline = 1
+                    if r.errores > 3:
+                        r.online = True
                     else:
-                        robotonline = 0
+                        r.online = False
                     # si el sitio no esta on line, tampoco el robot
-                    res.append(max(sitio.online, robotonline))
+                    res.append(slaves[self.sitio].online and r.online)
             d = Deferred()
         except Exception,e:
             raise e
@@ -242,7 +246,7 @@ for ccc,port in SITIOS.items():
                            i=AdminDataBlock('ea'),
                            h=AdminDataBlock('re'),
                            slave=port - 500,
-                           sitio=None   #ccc?
+                           sitio=ccc
                           )
     context.slave = "%02d" % (port - 500)
     contexts[context.slave] = context
@@ -258,10 +262,12 @@ reactor.listenTCP(500, mbfactory)
 class ModbusProtocol2(ModbusProtocol):
     def execute(self, request):
         print "request", request
+        print dir(request)
         packet = asciiFramer.buildPacket(request)
         print "ASCII", packet
         # Send like to slave using ascii Modbus
-        response = slaves[self.ccc].sendLineWithDeferred(packet)
+        response = slaves[self.ccc].transport.sendLineWithDeferred(
+                                                       packet, request.unit_id)
         response.addCallback(self._execute, request)
 
 class ModbusServerFactory2(ModbusServerFactory):
