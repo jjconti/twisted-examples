@@ -9,6 +9,7 @@ from constants import LOGDIR, IDLE, WAITING
 from config import slaves, robots
 
 from collections import deque
+import time
 log.startLogging(DailyLogFile('log.txt', LOGDIR))
 
 from listenTCP import asciiFramer
@@ -16,12 +17,12 @@ from listenTCP import asciiFramer
 class TModBus(LineOnlyReceiver):
 
     def lineReceived(self, line):
-        print "Linea cruda recibida"
         self.process(line)
 
     def connectionMade(self):
         self.factory.clients.append(self)
         self.deferreds = deque()
+        self.mensajes = {}
         self.state = IDLE
         self.sitio = None
         self.delayedCall = None
@@ -74,64 +75,28 @@ class TModBus(LineOnlyReceiver):
         LineOnlyReceiver.sendLine(self, line)
 
     def sendBack(self, response):
-        #packet = socketFramer.buildPacket(response)
-        print "Se recive un mensaje del G24"
-        if self.deferreds:
-            d = self.deferreds.popleft()
+        unit_id = response.unit_id
+        function_code = response.function_code
+        d = self.mensajes.get((unit_id, function_code))
+        if d:
+            del self.mensajes[unit_id, function_code]
             d.callback(response)
-            print "Se responde al Mango"
-            # Poner a 0 los errores del robots
             robots[self.sitio.ccc][d.unit_id - 1].errores = 0
-            # Si hay promesas en la cola, sacar y mandar linea
-            if self.deferreds:
-                print "Hay mensajes encolados."
-                # Hay mensajes para seguir enviado
-                self.delayedCall.reset()
-                print "Timeout reseteado"
-                self.sendLine(self.deferreds[0].line)
-                print "Mensaje enviado"
-            else:
-                print "Canal vuelve a estado libre"
-                self.state = IDLE
         else:
-            self.state = IDLE
-        # enviar a Mango
+            print "Error de RX:", self.sitio.ccc, unit_id, function_code
 
-    def sendLineWithDeferred(self, line, unit_id):
-        print "Mango manda un mensaje"
+    def sendLineWithDeferred(self, line, unit_id, function_code):
         d = Deferred()
         d.line = line
         d.unit_id = unit_id
-        self.deferreds.append(d)
-        if self.state == IDLE:
-            print "Canal libre"
-            self.state = WAITING
-            self.sendLine(line)
-            print "Mensaje mandado"
-            self.delayedCall = reactor.callLater(10, self.checkOcupacionCanal,
-                                                 unit_id)
-        else:
-            print "Esta ocuapdo el canal, esperando..."
+        d.function_code = function_code
+        d.timestamp = time.time()
+        if self.mensajes.get((unit_id, function_code)):
+            print "Error de TX:", self.sitio.ccc, unit_id, function_code
+            robots[self.sitio.ccc][d.unit_id - 1].errores += 1
+        self.mensajes[unit_id, function_code] = d
+        self.sendLine(line)
         return d
-
-    def checkOcupacionCanal(self, unit_id):
-        "Time out de 10 segundos"
-        if self.state == WAITING:
-            print "El canal estaba ocupado"
-            self.deferreds.popleft()
-            print "Se descarta el mensaje que estaba en la cabeza de la cola"
-            robots[self.sitio.ccc][unit_id - 1].errores += 1
-            # Si hay peticiones encoladas, enviar
-            if self.deferreds:
-                print "Hay mas elementos en la cola"
-                #self.sendLine(self.deferreds.popleft().line)
-                self.sendLine(self.deferreds[0].linea)
-                print "Vuelvo a poner el reloj a 10 segundos"
-                self.delayedCall = reactor.callLater(10,
-                                           self.checkOcupacionCanal, unit_id)
-            else:
-                self.state = IDLE
-                print "Liberando el canal ", self.sitio.ccc
 
 class TModBusFactory(Factory):
     protocol = TModBus

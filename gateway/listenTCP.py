@@ -60,7 +60,7 @@ class ModbusProtocol2(ModbusProtocol):
         packet = asciiFramer.buildPacket(request)
         # Send like to slave using ascii Modbus
         response = slaves[self.ccc].transport.sendLineWithDeferred(
-                                                       packet, request.unit_id)
+                                packet, request.unit_id,request.function_code)
         response.addCallback(self._execute, request)
 
 class ModbusServerFactory2(ModbusServerFactory):
