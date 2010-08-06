@@ -65,6 +65,7 @@ class TModBus(LineOnlyReceiver):
             # check LRC
             # si el LRC esta mal, repreguntar
             line = line + '\r\n'
+            print line
             asciiFramer.processIncomingPacket(line, self.sendBack)
 
     def sendLine(self, line):
@@ -79,6 +80,7 @@ class TModBus(LineOnlyReceiver):
         function_code = response.function_code
         d = self.mensajes.get((unit_id, function_code))
         if d:
+            print "sending backkkkkkk"
             del self.mensajes[unit_id, function_code]
             d.callback(response)
             robots[self.sitio.ccc][d.unit_id - 1].errores = 0
@@ -90,7 +92,6 @@ class TModBus(LineOnlyReceiver):
         d.line = line
         d.unit_id = unit_id
         d.function_code = function_code
-        d.timestamp = time.time()
         if self.mensajes.get((unit_id, function_code)):
             print "Error de TX:", self.sitio.ccc, unit_id, function_code
             robots[self.sitio.ccc][d.unit_id - 1].errores += 1

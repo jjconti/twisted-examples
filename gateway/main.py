@@ -43,5 +43,22 @@ for ccc,port in SITIOS.items():
         if port != 500:
             reactor.listenTCP(port, mbfactory)
 
+# Interfaz administrativa por SSH
+
+from twisted.conch import manhole, manhole_ssh
+from twisted.cred import portal, checkers
+
+def getManholeFactory(namespace, **passwords):
+    realm = manhole_ssh.TerminalRealm()
+    def getManhole(_): return manhole.Manhole(namespace)
+    realm.chainedProtocolFactory.protocolFactory = getManhole
+    p = portal.Portal(realm)
+    p.registerChecker(
+    checkers.InMemoryUsernamePasswordDatabaseDontUse(**passwords))
+    f = manhole_ssh.ConchFactory(p)
+    return f
+
+reactor.listenTCP(2222, getManholeFactory(globals(), admin='aaa'))
+
 # Que empiece la fiesta
 reactor.run()
