@@ -16,9 +16,9 @@ class Sitio(object):
         self.transport = FakeTransport()
 
 class Robot(object):
-    def __init__(self, online=True):
+    def __init__(self, online=False):
         self.online = online
-        self.errores = 0
+        self.errores = 10
 
 for ccc in SITIOS:
     slaves[ccc] = Sitio(ccc)

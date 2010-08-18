@@ -40,7 +40,7 @@ class AdminDataBlock(ModbusSequentialDataBlock):
                 #if address == 0:
                 res.append(slaves[self.sitio].online)
                 for r in robots[self.sitio]:
-                    if r.errores > 3:
+                    if r.errores > 2:
                         r.online = False
                     else:
                         r.online = True
@@ -59,7 +59,6 @@ class ModbusProtocol2(ModbusProtocol):
     def execute(self, request):
         packet = asciiFramer.buildPacket(request)
         # Send like to slave using ascii ModbusServerF
-        print "Mango Manda"
         response = slaves[self.ccc].transport.sendLineWithDeferred(
                                 packet, request.unit_id,request.function_code)
         response.addCallback(self._execute, request)
