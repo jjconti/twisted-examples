@@ -13,7 +13,7 @@ ROOT_PATH = '/home/juanjo/python/twisted/teco/'
 
 # SITIOS es un diccionario donde la clave es el CCC y el valor el puerto
 # en el que pregunta el Mango m2m u otro cliente Modbus.
-SITIOS = {'SFE': 504}
+SITIOS = {'SFE': 504, 'VM1': 503}
 # ROBOTS es un diccionario donde la clave es el CCC y el valor la cantidad
 # de robots que tiene un sitio.
-ROBOTS = {'SFE': 2}
+ROBOTS = {'SFE': 2, 'VM1': 1}
