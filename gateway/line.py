@@ -6,16 +6,21 @@ from twisted.python.logfile import DailyLogFile
 
 from constants import LOGDIR
 from config import slaves, robots
-
 from collections import deque
 log.startLogging(DailyLogFile('log.txt', LOGDIR))
 
 from listenTCP import asciiFramer
 
+from twittytwister import twitter
+twitclient = twitter.Twitter('kimera_status', 'LiCe2010')
 class TModBus(LineOnlyReceiver):
 
     def lineReceived(self, line):
-        self.process(line)
+        print "<--", "".join(str(ord(x))+'-' for x in line)
+        try:
+            self.process(line)
+        except Exception as e:
+            print "Error al procesar mensaje desde el G24", e
 
     def connectionMade(self):
         self.factory.clients.append(self)
@@ -29,7 +34,11 @@ class TModBus(LineOnlyReceiver):
 
     def connectionLost(self, reason):
         if self in self.factory.clients:
-            self.sitio.online = False
+            try:
+                self.sitio.online = False
+                twitclient.update('Se desconecto el cliente %s' % self.sitio.ccc)
+            except:
+                pass
             self.factory.clients.remove(self)
         else:
             print "El cliente ya fue eliminado."
@@ -42,6 +51,7 @@ class TModBus(LineOnlyReceiver):
             print "G24 dice: ", line
             ccc = line[5:8]
             print "SITIO", ccc
+            twitclient.update('Se ha conectado el sitio %s' % ccc)
             # Verificar si ya hay un G24 registrado para ese sitio
             for c in self.factory.clients:
                 if c.sitio and c.sitio.ccc == ccc:
