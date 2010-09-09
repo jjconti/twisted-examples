@@ -57,9 +57,11 @@ class AdminDataBlock(ModbusSequentialDataBlock):
 
 class ModbusProtocol2(ModbusProtocol):
     def execute(self, request):
+        asciiFramer = ModbusAsciiFramer(ClientDecoder())
         packet = asciiFramer.buildPacket(request)
-        # Send like to slave using ascii ModbusServerF
-        response = slaves[self.ccc].transport.sendLineWithDeferred(
+        # Send like to slave using ascii ModbusServerFactory2
+        print "Enviando a ", self.factory.ccc
+        response = slaves[self.factory.ccc].transport.sendLineWithDeferred(
                                 packet, request.unit_id,request.function_code)
         response.addCallback(self._execute, request)
 

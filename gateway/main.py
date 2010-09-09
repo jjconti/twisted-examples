@@ -35,13 +35,15 @@ reactor.listenTCP(500, mbfactory)
 
 # No esperar a que se conecten los robots.
 # Empezas a escuchar desde el principio
-for ccc,port in SITIOS.items():
+for ccc, port in SITIOS.items():
     if ccc not in modbuses.keys():
         mbfactory = ModbusServerFactory2(None) # None store
-        mbfactory.protocol.ccc = ccc
+        #mbfactory.protocol.ccc = ccc
+        mbfactory.ccc = ccc
         modbuses[ccc] = mbfactory
         if port != 500:
             reactor.listenTCP(port, mbfactory)
+        print modbuses
 
 # Interfaz administrativa por SSH
 
@@ -58,7 +60,7 @@ def getManholeFactory(namespace, **passwords):
     f = manhole_ssh.ConchFactory(p)
     return f
 
-reactor.listenTCP(2222, getManholeFactory(globals(), admin='aaa'))
+reactor.listenTCP(2222, getManholeFactory(globals(), admin=''))
 
 # Que empiece la fiesta
 reactor.run()

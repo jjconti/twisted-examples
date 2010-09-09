@@ -9,14 +9,18 @@ from config import slaves, robots
 from collections import deque
 log.startLogging(DailyLogFile('log.txt', LOGDIR))
 
-from listenTCP import asciiFramer
+from listenTCP import ModbusAsciiFramer, ClientDecoder
 
-from twittytwister import twitter
-twitclient = twitter.Twitter('kimera_status', 'LiCe2010')
+#from twittytwister import twitter
+#twitclient = twitter.Twitter('kimera_status', 'LiCe2010')
 class TModBus(LineOnlyReceiver):
 
     def lineReceived(self, line):
-        print "<--", "".join(str(ord(x))+'-' for x in line)
+        try:
+            ccc = self.sitio.ccc
+        except:
+            ccc = ''
+        print ccc, "<=", line
         try:
             self.process(line)
         except Exception as e:
@@ -36,7 +40,7 @@ class TModBus(LineOnlyReceiver):
         if self in self.factory.clients:
             try:
                 self.sitio.online = False
-                twitclient.update('Se desconecto el cliente %s' % self.sitio.ccc)
+                #twitclient.update('Se desconecto el cliente %s' % self.sitio.ccc)
             except:
                 pass
             self.factory.clients.remove(self)
@@ -51,7 +55,7 @@ class TModBus(LineOnlyReceiver):
             print "G24 dice: ", line
             ccc = line[5:8]
             print "SITIO", ccc
-            twitclient.update('Se ha conectado el sitio %s' % ccc)
+            #twitclient.update('Se ha conectado el sitio %s' % ccc)
             # Verificar si ya hay un G24 registrado para ese sitio
             for c in self.factory.clients:
                 if c.sitio and c.sitio.ccc == ccc:
@@ -70,11 +74,17 @@ class TModBus(LineOnlyReceiver):
             # TODO: check LRC
             # si el LRC esta mal, repreguntar
             line = line + '\r\n'
+            asciiFramer = ModbusAsciiFramer(ClientDecoder())
             asciiFramer.processIncomingPacket(line, self.sendBack)
 
     def sendLine(self, line):
         # Si la linea ya viene con \r\n, se la quieto por que
         # sendLine se lo agrega.
+        try:
+            ccc = self.sitio.ccc
+        except:
+            ccc = ''
+        print ccc, "=>", line
         if line.endswith('\r\n'):
             line = line[:-2]
         LineOnlyReceiver.sendLine(self, line)
