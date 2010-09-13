@@ -60,7 +60,6 @@ class ModbusProtocol2(ModbusProtocol):
         asciiFramer = ModbusAsciiFramer(ClientDecoder())
         packet = asciiFramer.buildPacket(request)
         # Send like to slave using ascii ModbusServerFactory2
-        print "Enviando a ", self.factory.ccc
         response = slaves[self.factory.ccc].transport.sendLineWithDeferred(
                                 packet, request.unit_id,request.function_code)
         response.addCallback(self._execute, request)
