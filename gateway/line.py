@@ -7,24 +7,31 @@ from twisted.python.logfile import DailyLogFile
 from constants import LOGDIR
 from config import slaves, robots
 from collections import deque
-log.startLogging(DailyLogFile('log.txt', LOGDIR))
+
+class MyObserver(log.FileLogObserver):
+
+    timeFormat = '%Y-%m-%d %H:%M:%S'
+
+log.startLoggingWithObserver(MyObserver(DailyLogFile('log.txt', LOGDIR)).emit)
 
 from listenTCP import ModbusAsciiFramer, ClientDecoder
+
 
 #from twittytwister import twitter
 #twitclient = twitter.Twitter('kimera_status', 'LiCe2010')
 class TModBus(LineOnlyReceiver):
 
-    def lineReceived(self, line):
+    def get_ccc(self):
         try:
-            ccc = self.sitio.ccc
+            return self.sitio.ccc
         except:
-            ccc = ''
-        print ccc, "<=", line
+            return ''
+
+    def lineReceived(self, line):
         try:
             self.process(line)
         except Exception as e:
-            print "Error al procesar mensaje desde el G24", e
+            log.msg("Error al procesar mensaje desde el G24" + str(e), system=self.get_ccc())
 
     def connectionMade(self):
         self.factory.clients.append(self)
@@ -33,8 +40,8 @@ class TModBus(LineOnlyReceiver):
         self.sitio = None
         self.delayedCall = None
         self.peer = self.transport.getPeer()
-        print "Nuevo cliente: %s:%d" % (self.peer.host, self.peer.port) #LOG
-        print "Total: %d" % len(self.factory.clients)
+        log.msg("Nuevo cliente: %s:%d" % (self.peer.host, self.peer.port))
+        log.msg("Total: %d" % len(self.factory.clients))
 
     def connectionLost(self, reason):
         if self in self.factory.clients:
@@ -45,21 +52,21 @@ class TModBus(LineOnlyReceiver):
                 pass
             self.factory.clients.remove(self)
         else:
-            print "El cliente ya fue eliminado."
+            log.msg("El cliente ya fue eliminado.", system=self.get_ccc())
 
     def process(self, line):
 
         if not line.startswith(':'):
-            print "Error en mensaje: no empieza con :"  #EXC
+            log.msg("Error en mensaje: no empieza con :")
         elif line[3] == '9':   # mensaje del G24 - Saludo inicial
-            print "G24 dice: ", line
+            log.msg("G24 dice: %s" % line)
             ccc = line[5:8]
-            print "SITIO", ccc
+            log.msg("SITIO %s" % ccc)
             #twitclient.update('Se ha conectado el sitio %s' % ccc)
             # Verificar si ya hay un G24 registrado para ese sitio
             for c in self.factory.clients:
                 if c.sitio and c.sitio.ccc == ccc:
-                    print "%s ya estaba conectado. Borrando anterior." % ccc
+                    log.msg("%s ya estaba conectado. Borrando anterior." % ccc)
                     c.transport.loseConnection()
                     self.factory.clients.remove(c)
                     break
@@ -69,7 +76,7 @@ class TModBus(LineOnlyReceiver):
                 self.sitio.transport = self
                 self.canal_ocupado = False
             except Exception:
-                print "El sitio %s no existe en la base de datos." % ccc
+                log.msg("El sitio %s no existe en la base de datos." % ccc)
         else:
             # TODO: check LRC
             # si el LRC esta mal, repreguntar
@@ -80,11 +87,7 @@ class TModBus(LineOnlyReceiver):
     def sendLine(self, line):
         # Si la linea ya viene con \r\n, se la quieto por que
         # sendLine se lo agrega.
-        try:
-            ccc = self.sitio.ccc
-        except:
-            ccc = ''
-        print ccc, "=>", line
+        log.msg("=> %s" % line, system=self.get_ccc())
         if line.endswith('\r\n'):
             line = line[:-2]
         LineOnlyReceiver.sendLine(self, line)
