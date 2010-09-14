@@ -25,7 +25,7 @@ class TModBus(LineOnlyReceiver):
         try:
             return self.sitio.ccc
         except:
-            return ''
+            return ' - '
 
     def lineReceived(self, line):
         try:
@@ -40,8 +40,8 @@ class TModBus(LineOnlyReceiver):
         self.sitio = None
         self.delayedCall = None
         self.peer = self.transport.getPeer()
-        log.msg("Nuevo cliente: %s:%d" % (self.peer.host, self.peer.port))
-        log.msg("Total: %d" % len(self.factory.clients))
+        log.msg("Nuevo cliente: %s:%d" % (self.peer.host, self.peer.port), system=' - ')
+        log.msg("Total: %d" % len(self.factory.clients), system=' - ')
 
     def connectionLost(self, reason):
         if self in self.factory.clients:
@@ -57,16 +57,16 @@ class TModBus(LineOnlyReceiver):
     def process(self, line):
 
         if not line.startswith(':'):
-            log.msg("Error en mensaje: no empieza con :")
+            log.msg("Error en mensaje: no empieza con :", system=self.get_ccc())
         elif line[3] == '9':   # mensaje del G24 - Saludo inicial
-            log.msg("G24 dice: %s" % line)
+            log.msg("G24 dice: %s" % line, system=self.get_ccc())
             ccc = line[5:8]
-            log.msg("SITIO %s" % ccc)
+            log.msg("SITIO %s" % ccc, system=self.get_ccc())
             #twitclient.update('Se ha conectado el sitio %s' % ccc)
             # Verificar si ya hay un G24 registrado para ese sitio
             for c in self.factory.clients:
                 if c.sitio and c.sitio.ccc == ccc:
-                    log.msg("%s ya estaba conectado. Borrando anterior." % ccc)
+                    log.msg("%s ya estaba conectado. Borrando anterior." % ccc, system=self.get_ccc())
                     c.transport.loseConnection()
                     self.factory.clients.remove(c)
                     break
@@ -76,7 +76,7 @@ class TModBus(LineOnlyReceiver):
                 self.sitio.transport = self
                 self.canal_ocupado = False
             except Exception:
-                log.msg("El sitio %s no existe en la base de datos." % ccc)
+                log.msg("El sitio %s no existe en la base de datos." % ccc, system=self.get_ccc())
         else:
             # TODO: check LRC
             # si el LRC esta mal, repreguntar
@@ -113,7 +113,8 @@ class TModBus(LineOnlyReceiver):
                 robots[self.sitio.ccc][d.unit_id - 1].errores += 1
         else:
             # Se recive una rta para una pregunta no hecha o ya respondida
-            print "Error de RX:", self.sitio.ccc, unit_id, function_code
+            log.msg("Error de RX: robot: %s -  funcion: %s"
+                    % (unit_id, function_code), system=self.get_ccc())
 
     def sendLineWithDeferred(self, line, unit_id, function_code):
         #if not robots[self.sitio.ccc][d.unit_id - 1].online:
@@ -124,7 +125,8 @@ class TModBus(LineOnlyReceiver):
         d.function_code = function_code
         old = self.mensajes.get((unit_id, function_code))
         if old:
-            print "Error de TX:", self.sitio.ccc, unit_id, function_code
+            log.msg("Error de TX: robot: %s - funcion: %s"
+                    % (unit_id, function_code), system=self.get_ccc())
             slaves[self.sitio.ccc].online = False
         self.mensajes[unit_id, function_code] = d
         self.sendLine(line)

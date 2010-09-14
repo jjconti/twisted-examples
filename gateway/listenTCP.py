@@ -52,9 +52,6 @@ class AdminDataBlock(ModbusSequentialDataBlock):
         d.callback(res[address:address+count])
         return d    # cambair esto usando maybeDeferred mas afuera
 
-    def setValues(self, address, values, slave=None):
-        print "Set Value address", address, "values", values
-
 class ModbusProtocol2(ModbusProtocol):
     def execute(self, request):
         asciiFramer = ModbusAsciiFramer(ClientDecoder())
