@@ -83,6 +83,7 @@ class TModBus(LineOnlyReceiver):
             line = line + '\r\n'
             asciiFramer = ModbusAsciiFramer(ClientDecoder())
             asciiFramer.processIncomingPacket(line, self.sendBack)
+        log.msg("<= %s" % line, system=self.get_ccc())
 
     def sendLine(self, line):
         # Si la linea ya viene con \r\n, se la quieto por que
@@ -127,7 +128,6 @@ class TModBus(LineOnlyReceiver):
         if old:
             log.msg("Error de TX: robot: %s - funcion: %s"
                     % (unit_id, function_code), system=self.get_ccc())
-            slaves[self.sitio.ccc].online = False
         self.mensajes[unit_id, function_code] = d
         self.sendLine(line)
         return d
