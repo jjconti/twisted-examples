@@ -3,7 +3,7 @@ from twisted.internet.defer import Deferred
 from twisted.internet.protocol import Factory
 from twisted.python import log
 from twisted.python.logfile import DailyLogFile
-
+from twisted.internet.threads import deferToThread
 from constants import LOGDIR
 from config import slaves, robots
 from collections import deque
@@ -15,7 +15,7 @@ class MyObserver(log.FileLogObserver):
 log.startLoggingWithObserver(MyObserver(DailyLogFile('log.txt', LOGDIR)).emit)
 
 from listenTCP import ModbusAsciiFramer, ClientDecoder
-
+from twitterupdates import api as twitter
 
 #from twittytwister import twitter
 #twitclient = twitter.Twitter('kimera_status', 'LiCe2010')
@@ -47,7 +47,7 @@ class TModBus(LineOnlyReceiver):
         if self in self.factory.clients:
             try:
                 self.sitio.online = False
-                #twitclient.update('Se desconecto el cliente %s' % self.sitio.ccc)
+                deferToThread(twitter.update, "El sitio %s se ha desconectado." % self.get_ccc())
             except:
                 pass
             self.factory.clients.remove(self)
@@ -62,6 +62,7 @@ class TModBus(LineOnlyReceiver):
             log.msg("G24 dice: %s" % line, system=self.get_ccc())
             ccc = line[5:8]
             log.msg("SITIO %s" % ccc, system=self.get_ccc())
+            deferToThread(twitter.update, "El sitio %s se ha conectado." % ccc)
             #twitclient.update('Se ha conectado el sitio %s' % ccc)
             # Verificar si ya hay un G24 registrado para ese sitio
             for c in self.factory.clients:
