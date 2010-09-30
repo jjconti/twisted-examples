@@ -7,6 +7,8 @@ from twisted.internet.threads import deferToThread
 from constants import LOGDIR
 from config import slaves, robots
 from collections import deque
+from datetime import datetime
+import time
 
 class MyObserver(log.FileLogObserver):
 
@@ -17,8 +19,6 @@ log.startLoggingWithObserver(MyObserver(DailyLogFile('log.txt', LOGDIR)).emit)
 from listenTCP import ModbusAsciiFramer, ClientDecoder
 from twitterupdates import api as twitter
 
-#from twittytwister import twitter
-#twitclient = twitter.Twitter('kimera_status', 'LiCe2010')
 class TModBus(LineOnlyReceiver):
 
     def get_ccc(self):
@@ -43,11 +43,16 @@ class TModBus(LineOnlyReceiver):
         log.msg("Nuevo cliente: %s:%d" % (self.peer.host, self.peer.port), system=' - ')
         log.msg("Total: %d" % len(self.factory.clients), system=' - ')
 
+    def tweetStatus(self, msg):
+        t = datetime.fromtimestamp(time.time())
+        ts = t.strftime('%d/%m/%Y %H:%M:%S')
+        deferToThread(twitter.update_status, msg % (self.get_ccc(), ts))
+
     def connectionLost(self, reason):
         if self in self.factory.clients:
             try:
                 self.sitio.online = False
-                deferToThread(twitter.update, "El sitio %s se ha desconectado." % self.get_ccc())
+                self.tweetStatus("Se perdio la conexion con el sitio %s: %s")
             except:
                 pass
             self.factory.clients.remove(self)
@@ -62,8 +67,6 @@ class TModBus(LineOnlyReceiver):
             log.msg("G24 dice: %s" % line, system=self.get_ccc())
             ccc = line[5:8]
             log.msg("SITIO %s" % ccc, system=self.get_ccc())
-            deferToThread(twitter.update, "El sitio %s se ha conectado." % ccc)
-            #twitclient.update('Se ha conectado el sitio %s' % ccc)
             # Verificar si ya hay un G24 registrado para ese sitio
             for c in self.factory.clients:
                 if c.sitio and c.sitio.ccc == ccc:
@@ -76,6 +79,8 @@ class TModBus(LineOnlyReceiver):
                 self.sitio.online = True
                 self.sitio.transport = self
                 self.canal_ocupado = False
+                log.msg("SITIO %s" % ccc, system=self.get_ccc())
+                self.tweetStatus("El sitio %s se ha conectado: %s")
             except Exception:
                 log.msg("El sitio %s no existe en la base de datos." % ccc, system=self.get_ccc())
         else:
@@ -84,14 +89,15 @@ class TModBus(LineOnlyReceiver):
             line = line + '\r\n'
             asciiFramer = ModbusAsciiFramer(ClientDecoder())
             asciiFramer.processIncomingPacket(line, self.sendBack)
+        line = line[:-2]    # no \n\r in the log
         log.msg("<= %s" % line, system=self.get_ccc())
 
     def sendLine(self, line):
         # Si la linea ya viene con \r\n, se la quieto por que
         # sendLine se lo agrega.
-        log.msg("=> %s" % line, system=self.get_ccc())
         if line.endswith('\r\n'):
             line = line[:-2]
+        log.msg("=> %s" % line, system=self.get_ccc())
         LineOnlyReceiver.sendLine(self, line)
 
     def sendBack(self, response):
@@ -119,8 +125,6 @@ class TModBus(LineOnlyReceiver):
                     % (unit_id, function_code), system=self.get_ccc())
 
     def sendLineWithDeferred(self, line, unit_id, function_code):
-        #if not robots[self.sitio.ccc][d.unit_id - 1].online:
-        #    robot.cuenta_reintentos
         d = Deferred()
         d.line = line
         d.unit_id = unit_id
@@ -129,11 +133,20 @@ class TModBus(LineOnlyReceiver):
         if old:
             log.msg("Error de TX: robot: %s - funcion: %s"
                     % (unit_id, function_code), system=self.get_ccc())
+            slaves[self.sitio.ccc].errores += 1
+            if slaves[self.sitio.ccc].errores == 11:
+                self.tweetStatus("Parece que el sitio %s se desconecto: %s")
+        else:
+            # No hubo error de TX
+            slaves[self.sitio.ccc].errores = 0
         self.mensajes[unit_id, function_code] = d
         self.sendLine(line)
         return d
 
 class TModBusFactory(Factory):
+    t = datetime.fromtimestamp(time.time())
+    ts = t.strftime('%d/%m/%Y %H:%M:%S')
+    deferToThread(twitter.update_status, "El sistema se ha reiniciado: %s" % ts)
     protocol = TModBus
     writeBuffer = {}    # clave prolocolo, valor triplete para ask_write_reg
 

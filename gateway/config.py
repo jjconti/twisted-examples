@@ -12,13 +12,14 @@ class FakeTransport(object):
 class Sitio(object):
     def __init__(self, ccc, online=False):
         self.ccc = ccc
+        self.errores = 100
         self.online = online
         self.transport = FakeTransport()
 
 class Robot(object):
     def __init__(self, online=False):
         self.online = online
-        self.errores = 10
+        self.errores = 100
 
 for ccc in SITIOS:
     slaves[ccc] = Sitio(ccc)

@@ -38,6 +38,10 @@ class AdminDataBlock(ModbusSequentialDataBlock):
         try:
             if self.tipo == 'ed':
                 #if address == 0:
+                if slaves[self.sitio].errores > 10:
+                    slaves[self.sitio].online = False
+                else:
+                    slaves[self.sitio].online = True
                 res.append(slaves[self.sitio].online)
                 for r in robots[self.sitio]:
                     if r.errores > 2:
