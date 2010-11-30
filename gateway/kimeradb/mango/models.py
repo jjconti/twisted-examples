@@ -538,6 +538,9 @@ class Systemsettings(models.Model):
     class Meta:
         db_table = u'systemSettings'
 
+    def __unicode__(self):
+        return self.settingname + ' - ' + self.settingvalue
+
 class Temas(models.Model):
     tema_id = models.IntegerField(unique=True)
     tema_aquien = models.IntegerField(null=True, blank=True)
