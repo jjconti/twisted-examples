@@ -71,6 +71,9 @@ class Datasources(models.Model):
     class Meta:
         db_table = u'dataSources'
 
+    def __unicode__(self):
+        return self.name
+
 class DatasourcesGp(models.Model):
     id = models.IntegerField(primary_key=True)
     xid = models.CharField(unique=True, max_length=150)
@@ -580,6 +583,9 @@ class Users(models.Model):
     receiveownauditevents = models.CharField(max_length=3, db_column='receiveOwnAuditEvents') # Field name made lowercase.
     class Meta:
         db_table = u'users'
+
+    def __unicode__(self):
+        return self.username
 
 class UsersGp(models.Model):
     id = models.IntegerField(primary_key=True)
