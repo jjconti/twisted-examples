@@ -7,6 +7,10 @@ from constants import SITIOS
 from pymodbus.server.async import ModbusServerFactory
 from pymodbus.datastore import ModbusServerContext, ModbusSlaveContext
 from twisted.internet import reactor
+from twisted.internet.serialport import SerialPort
+from twisted.internet import reactor
+
+
 
 # Servidor para los G24 que hablan Modbus Serie ASCII
 factory = TModBusFactory()
@@ -61,6 +65,14 @@ def getManholeFactory(namespace, **passwords):
     return f
 
 reactor.listenTCP(2222, getManholeFactory(globals(), admin=''))
+
+# Serial
+factory = TModBusFactory()
+protocol = factory.buildProtocol(None)
+deviceName = "ttyS0"
+
+port = SerialPort(protocol, deviceName, reactor)
+
 
 # Que empiece la fiesta
 reactor.run()
