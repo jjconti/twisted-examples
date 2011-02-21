@@ -1,0 +1,20 @@
+<h1>Salas</h2>
+
+<table>
+<tr>
+<td>CCC</td>
+<td>N&uacute;mero</td>
+<td>RFID</td>
+<td>Puerta Abierta</td>
+<td>Movimiento</td>
+</tr>
+{% for sala in salas %}
+<tr style="background-color:{{ sala.color }}">
+<td><a href="/sala/{{ sala.id }}">{{ sala.ccc }}</a></td>
+<td>{{ sala.numero }}</td>
+<td>{{ sala.rfid }}</td>
+<td>{{ sala.puerta_abierta }}</td>
+<td>{{ sala.movimiento }}</td>
+</tr>
+{% endfor %}
+</table>
