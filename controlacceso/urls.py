@@ -9,6 +9,7 @@ from salas.views import *
 urlpatterns = patterns('',
     # Example:
     # (r'^controlacceso/', include('controlacceso.foo.urls')),
+    (r'^$', index),
     (r'^salas/', salas_list),
     (r'^sala/(\d+)', sala_info),
     
