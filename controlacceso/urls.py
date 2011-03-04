@@ -12,7 +12,8 @@ urlpatterns = patterns('',
     (r'^$', index),
     (r'^salas/', salas_list),
     (r'^sala/(\d+)', sala_info),
-    
+    (r'^ocupante/(\d+)', persona_info),   
+ 
     # Uncomment the admin/doc line below to enable admin documentation:
     # (r'^admin/doc/', include('django.contrib.admindocs.urls')),
 

@@ -4,17 +4,25 @@
 <tr>
 <td>CCC</td>
 <td>N&uacute;mero</td>
+<td>Nombre</td>
 <td>RFID</td>
-<td>Puerta Abierta</td>
-<td>Movimiento</td>
+<td>Nombre</td>
+<td>Legajo</td>
+<td>Puerta</td>
+<td>Presencia</td>
+<td>Tiempo desde el &uacute;ltimo cambio</td>
 </tr>
 {% for sala in salas %}
 <tr style="background-color:{{ sala.color }}">
 <td><a href="/sala/{{ sala.id }}">{{ sala.ccc }}</a></td>
 <td>{{ sala.numero }}</td>
-<td>{{ sala.rfid }}</td>
-<td>{{ sala.puerta_abierta }}</td>
-<td>{{ sala.movimiento }}</td>
+<td>{{ sala.nombre }}</td>
+<td><a href="/ocupante/{{ sala.persona.id }}">{{ sala.rfid }}</a></td>
+<td>{{ sala.persona.nombre }}</td>
+<td>{{ sala.persona.legajo }}</td>
+<td>{{ sala.puerta_abierta|yesno:"Abierta,Cerrada" }}</td>
+<td>{{ sala.movimiento|yesno:"Si,No" }}</td>
+<td>{{ sala.timestamp|timesince }}</td>
 </tr>
 {% endfor %}
 </table>

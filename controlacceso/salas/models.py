@@ -10,15 +10,22 @@ class Persona(models.Model):
     def __unicode__(self):
         return self.nombre
 
+
 class Sala(models.Model):
     ccc = models.CharField(max_length=3)
     numero_de_sala = models.IntegerField()
+    nombre = models.CharField(max_length=30)
     
     def __unicode__(self):
-        return u"%s - %s" % (self.ccc, self.numero_de_sala)
+        return u"%s - %s - %s" % (self.ccc, self.numero_de_sala, self.nombre)
     
     def estado(self):
-        return self.registroacceso_set.latest().estado()
+        try:
+            estado = self.registroacceso_set.latest().estado()
+        except RegistroAcceso.DoesNotExist:
+            estado = None
+        return estado
+          
         
 class RegistroAcceso(models.Model):
     sala = models.ForeignKey(Sala)
@@ -32,7 +39,11 @@ class RegistroAcceso(models.Model):
         
     def estado(self):
         return Estado(self, self.rfid, self.puerta_abierta, self.movimiento)
-        
+       
+    def masAntiguoQue(minutos):
+        now = datetime.now()
+        return (now - self.timestamp).seconds / 60 > minutos
+
     class Meta:
         ordering = ['-timestamp']
         get_latest_by = 'timestamp'
@@ -65,7 +76,7 @@ class Estado(object):
         elif self.rfid and not self.puerta_abierta and not self.movimiento:
             return ALERTAVERDE
         elif self.rfid and not self.puerta_abierta and self.movimiento:
-            return ALERTAAMARILLO
+            return NORMAL
         elif self.rfid and self.puerta_abierta and not self.movimiento:
             return NORMAL
         elif self.rfid and self.puerta_abierta and self.movimiento:

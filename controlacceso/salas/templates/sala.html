@@ -1,18 +1,24 @@
-<h1>Sala {{ sala.ccc }} - {{ sala.numero_de_sala }}</h2>
+<h1>{{ sala.ccc }} - {{ sala.numero_de_sala }} - {{ sala.nombre }}</h2>
 
 <table>
 <tr>
 <td>Fecha</td>
 <td>RFID</td>
-<td>Puerta Abierta</td>
-<td>Movimiento</td>
+<td>Nombre</td>
+<td>Legajo</td>
+<td>Puerta</td>
+<td>Presencia</td>
 </tr>
 {% for estado in registros %}
 <tr style="background-color:{{ estado.color }}">
 <td>{{ estado.registro.timestamp }}</td>
 <td>{{ estado.rfid }}</td>
-<td>{{ estado.puerta_abierta }}</td>
-<td>{{ estado.movimiento }}</td>
+<td>{{ estado.persona.nombre }}</td>
+<td>{{ estado.persona.legajo }}</td>
+<td>{{ estado.puerta_abierta|yesno:"Abierta,Cerrada" }}</td>
+<td>{{ estado.movimiento|yesno:"Si,No" }}</td>
 </tr>
 {% endfor %}
 </table>
+
+<a href="/salas">Volver</a>
