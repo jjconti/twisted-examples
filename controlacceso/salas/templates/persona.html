@@ -1,0 +1,14 @@
+<h1>Datos del ocupante</h2>
+
+</br>
+</br>
+
+RFID: {{ persona.rfid }} </br>
+Nombre: {{ persona.nombre }}</br>
+Legajo: {{ persona.legajo }}</br>
+Empleado de telecom: {{ persona.empleado_de_telecom|yesno:"si,no" }}</br>
+Vencimiento de acceso: {{ persona.vencimiento_de_acceso|default:"sin vencimiento" }}</br>
+</br>
+</br>
+
+<a href="/salas">Volver</a>

@@ -10,7 +10,7 @@ urlpatterns = patterns('',
     # Example:
     # (r'^controlacceso/', include('controlacceso.foo.urls')),
     (r'^$', index),
-    (r'^salas/', salas_list),
+    (r'^salas/(\d+)*', salas_list),
     (r'^sala/(\d+)', sala_info),
     (r'^ocupante/(\d+)', persona_info),   
  

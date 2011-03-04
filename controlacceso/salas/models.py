@@ -1,4 +1,6 @@
 from django.db import models
+from datetime import datetime
+from django.db.models.signals import pre_save
 
 class Persona(models.Model):
     rfid = models.CharField(max_length=100)
@@ -33,16 +35,19 @@ class RegistroAcceso(models.Model):
     rfid = models.CharField(max_length=100, blank=True)
     puerta_abierta = models.BooleanField()
     movimiento = models.BooleanField()
+    tiempoDesdeNormalAnterior = models.IntegerField(blank=True, null=True)  # en minutos
     
     def __unicode__(self):
-        return u"%s | %s | %d %d" % (self.sala, self.rfid, self.puerta_abierta, self.movimiento)
+        return u"%s | %s | %d %d | %s" % (self.sala, self.rfid, self.puerta_abierta, self.movimiento, self.estado().esAlerta())
         
     def estado(self):
         return Estado(self, self.rfid, self.puerta_abierta, self.movimiento)
-       
-    def masAntiguoQue(minutos):
+
+    def masAntiguoQue(self, minutos):
         now = datetime.now()
-        return (now - self.timestamp).seconds / 60 > minutos
+        delta = now - self.timestamp
+        totalMinutos = delta.seconds / 60 + delta.days * 24 * 60
+        return totalMinutos > int(minutos)
 
     class Meta:
         ordering = ['-timestamp']
@@ -61,23 +66,51 @@ class Estado(object):
         self.rfid = rfid
         self.puerta_abierta = puerta_abierta
         self.movimiento = movimiento
-        self.color = self.get_color()
+        self.color = self.setTipoYObtenerColor()
         print self.color, 'acoloooor'
     
-    def get_color(self):
+    def esAlerta(self):
+        print "es alerta?", self.tipo
+        return self.tipo.startswith('alerta')
+
+    def setTipoYObtenerColor(self):
         if self.rfid == '' and not self.puerta_abierta and not self.movimiento:
+            self.tipo = 'normal'
             return NORMAL
-        elif self.rfid == '' and not self.puerta_abierta and self.movimiento:
-            return ALERTANARANJA
         elif self.rfid == '' and self.puerta_abierta and not self.movimiento:
+            self.tipo = 'alerta_naranja'
+            return ALERTANARANJA
+        elif self.rfid == '' and not self.puerta_abierta and self.movimiento:
+            self.tipo = 'alerta_roja'
             return ALERTAROJA
         elif self.rfid == '' and self.puerta_abierta and self.movimiento:
+            self.tipo = 'alerta_roja'
             return ALERTAROJA
         elif self.rfid and not self.puerta_abierta and not self.movimiento:
+            self.tipo = 'alerta_verde'
             return ALERTAVERDE
-        elif self.rfid and not self.puerta_abierta and self.movimiento:
-            return NORMAL
         elif self.rfid and self.puerta_abierta and not self.movimiento:
+            self.tipo = 'alerta_naranja'
+            return ALERTANARANJA
+        elif self.rfid and not self.puerta_abierta and self.movimiento:
+            self.tipo = 'normal'
             return NORMAL
         elif self.rfid and self.puerta_abierta and self.movimiento:
+            self.tipo = 'normal'
             return NORMAL
+
+def pre_save_Registro(sender, instance, **kw):
+    estadoAnterior = instance.sala.estado()
+    print estadoAnterior
+    if estadoAnterior is None or not estadoAnterior.esAlerta():
+        instance.tiempoDesdeNormalAnterior = 0
+    else:
+        t = estadoAnterior.registro.tiempoDesdeNormalAnterior
+        now = datetime.now()
+        delta = now - estadoAnterior.registro.timestamp
+        instance.tiempoDesdeNormalAnterior = delta.seconds / 60 + delta.days * 24 * 60 + t
+        print "valor seteado en instancia", instance.tiempoDesdeNormalAnterior
+        
+
+pre_save.connect(pre_save_Registro, sender=RegistroAcceso, dispatch_uid="salas.models")
+
