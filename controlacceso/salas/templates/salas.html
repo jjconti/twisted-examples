@@ -51,6 +51,9 @@ Ver solo las salas con registros que hayan cambiado en m&aacute;s de: <a href="/
 {% else %}
     <a href="/registro/{{ sala.registro.id }}/reconocido/si">Reconocer</a>
 {% endif %}
+{% if sala.alerta_verde %}
+/ <a href="/registro/{{ sala.registro.id }}/registrarsalida">Registrar salida</a>
+{% endif %}
 </td>
 </tr>
 {% endfor %}

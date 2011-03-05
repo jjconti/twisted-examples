@@ -84,6 +84,9 @@ class Estado(object):
     def esAlerta(self):
         return self.tipo.startswith('alerta')
 
+    def esAlertaVerde(self):
+        return self.tipo == 'alerta_verde'
+
     def setTipoYObtenerColor(self):
         if self.rfid == '' and not self.puerta_abierta and not self.movimiento:
             self.tipo = 'normal'

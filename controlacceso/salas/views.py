@@ -30,7 +30,7 @@ def salas_list(request, minutos=None, alertas=None, reconocidas=None):
             salas.append({'id': sala.id, 'ccc': sala.ccc, 'nombre': sala.nombre, 'numero': sala.numero_de_sala, 'rfid': estado.rfid, 
                         'puerta_abierta': estado.puerta_abierta, 'movimiento': estado.movimiento, 'color': estado.setTipoYObtenerColor(),
                         'persona': persona, 'timestamp': estado.registro.timestamp, 'registro': estado.registro, 'masAntiguoQue': masAntiguoQue,
-                        'esAlerta': esAlerta, 'reconocido': reconocido})
+                        'esAlerta': esAlerta, 'reconocido': reconocido, 'alerta_verde': estado.esAlertaVerde()})
     salas = [s for s in salas if s['masAntiguoQue']]
     if alertas == 'soloalertas':
         salas = [s for s in salas if s['esAlerta']]
@@ -42,7 +42,7 @@ def reconocido(request, registroid, valor):
     try:
         registro = RegistroAcceso.objects.get(id=registroid)
     except RegistroAcceso.DoesNotExist:
-        return redirect('/salas/')
+        return redirect('/')
 
     if valor == 'si':
         registro.reconocido = True
@@ -56,9 +56,22 @@ def reconocido(request, registroid, valor):
 
     if referrer:
         return redirect(referrer)
-    return redirect('/salas/')
+    return redirect('/')
     
+def registrar_salida(request, registroid):
+    try:
+        registro = RegistroAcceso.objects.get(id=registroid)
+    except RegistroAcceso.DoesNotExist:
+        return redirect('/')
     
+    nuevoRegistro = RegistroAcceso(sala=registro.sala, rfid='', puerta_abierta=False, movimiento=False)
+    nuevoRegistro.save()
+
+    referrer = request.META.get('HTTP_REFERER')
+
+    if referrer:
+        return redirect(referrer)
+    return redirect('/')  
 
 def persona_info(request, personaid):
     try:
