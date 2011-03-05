@@ -1,6 +1,16 @@
 <h1>Salas</h2>
 
-Ver solo las salas con registros que hayan cambiado en m&aacute;s de: <a href="5">5</a> <a href="10">10</a> <a href="15">15</a> [minutos]
+Ver solo las salas con registros que hayan cambiado en m&aacute;s de: <a href="/salas/1/{{ alertas }}/{{ reconocidas }}">1</a> <a href="/salas/5/{{ alertas }}/{{ reconocidas }}">5</a> <a href="/salas/10/{{ alertas }}/{{ reconocidas }}">10</a> <a href="/salas/15/{{ alertas }}/{{ reconocidas }}">15</a> [minutos]
+{% if alertas == "soloalertas" %} 
+    (<a href="/salas/{{ minutos }}/alertasyno/{{ reconocidas }}">alertas y no</a>)
+{% else %}
+    (<a href="/salas/{{ minutos }}/soloalertas/{{ reconocidas }}">solo alertas</a>)
+{% endif %}
+{% if reconocidas == "soloreconocidas" %} 
+    (<a href="/salas/{{ minutos }}/{{ alertas }}/reconocidasyno">reconocidas y no</a>)
+{% else %}
+    (<a href="/salas/{{ minutos }}/{{ alertas }}/soloreconocidas">solo reconocidas</a>)
+{% endif %}
 <br/>
 <br/>
 <table border="1">
@@ -14,20 +24,34 @@ Ver solo las salas con registros que hayan cambiado en m&aacute;s de: <a href="5
 <td>Puerta</td>
 <td>Presencia</td>
 <td>Tiempo desde el &uacute;ltimo cambio</td>
+<td>Reconocido?</td>
+<td>Acci&oacute;n</td>
 </tr>
 {% for sala in salas %}
 <tr style="background-color:{{ sala.color }}">
 <td><a href="/sala/{{ sala.id }}">{{ sala.ccc }}</a></td>
 <td>{{ sala.numero }}</td>
 <td>{{ sala.nombre }}</td>
-<td><a href="/ocupante/{{ sala.persona.id }}">{{ sala.rfid }}</a></td>
+<td>
+{% if sala.persona.id %}
+    <a href="/ocupante/{{ sala.persona.id }}">{{ sala.rfid }}</a></td>
+{% else %}
+    {{ sala.rfid }}
+{% endif %}
+</td>
 <td>{{ sala.persona.nombre }}</td>
 <td>{{ sala.persona.legajo }}</td>
 <td>{{ sala.puerta_abierta|yesno:"Abierta,Cerrada" }}</td>
 <td>{{ sala.movimiento|yesno:"Si,No" }}</td>
 <td>{{ sala.timestamp|timesince }}</td>
-<td><a href="/registro/{{ sala.registroid }}/reconocido/si">Reconocer</a></td>
-<td><a href="/registro/{{ sala.registroid }}/reconocido/no">NO Reconocer</a></td>
+<td>{{ sala.registro.reconocido|yesno:"si,no"}}</td>
+<td>
+{% if sala.registro.reconocido %}
+    <a href="/registro/{{ sala.registro.id }}/reconocido/no">NO Reconocer</a>
+{% else %}
+    <a href="/registro/{{ sala.registro.id }}/reconocido/si">Reconocer</a>
+{% endif %}
+</td>
 </tr>
 {% endfor %}
 </table>

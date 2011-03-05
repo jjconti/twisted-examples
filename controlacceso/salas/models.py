@@ -35,20 +35,32 @@ class RegistroAcceso(models.Model):
     rfid = models.CharField(max_length=100, blank=True)
     puerta_abierta = models.BooleanField()
     movimiento = models.BooleanField()
-    tiempoDesdeNormalAnterior = models.IntegerField(blank=True, null=True)  # en minutos
+    tiempoDesdeNormalAnterior = models.IntegerField(blank=True, null=True) # en minutos - atributo agregado mediante signales al crear el objeto
     reconocido = models.BooleanField(default=False)
-    
+
     def __unicode__(self):
         return u"%s | %s | %d %d | %s" % (self.sala, self.rfid, self.puerta_abierta, self.movimiento, self.estado().esAlerta())
         
     def estado(self):
         return Estado(self, self.rfid, self.puerta_abierta, self.movimiento)
 
-    def masAntiguoQue(self, minutos):
+    def esAlerta(self, minutos=13):
+        '''Se considera al registro en estado de alerta, si su estado es de alerta
+           y ha estado en algun estado de alerta por los ultimos n minutos.'''
+        print self.tiempoDesdeNormal() > minutos, "es alerta"
+        return self.estado().esAlerta() and self.tiempoDesdeNormal() > minutos
+
+    def tiempoDesdeNormal(self):
+        return self.tiempoDesdeNormalAnterior + self.totalMinutos()
+
+    def totalMinutos(self):
         now = datetime.now()
         delta = now - self.timestamp
-        totalMinutos = delta.seconds / 60 + delta.days * 24 * 60
-        return totalMinutos > int(minutos)
+        return delta.seconds / 60 + delta.days * 24 * 60
+
+    def masAntiguoQue(self, minutos):
+        print self.totalMinutos(), "total minutos"
+        return self.totalMinutos() > int(minutos)
 
     class Meta:
         ordering = ['-timestamp']
@@ -105,9 +117,7 @@ def pre_save_Registro(sender, instance, **kw):
         instance.tiempoDesdeNormalAnterior = 0
     else:
         t = estadoAnterior.registro.tiempoDesdeNormalAnterior
-        now = datetime.now()
-        delta = now - estadoAnterior.registro.timestamp
-        instance.tiempoDesdeNormalAnterior = delta.seconds / 60 + delta.days * 24 * 60 + t
+        instance.tiempoDesdeNormalAnterior = estadoAnterior.registro.totalMinutos() + t
         print "valor seteado en instancia", instance.tiempoDesdeNormalAnterior
         
 

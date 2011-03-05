@@ -14,7 +14,7 @@ def sala_info(request, salaid):
             r.persona = {'nombre': 'Desconocido', 'legajo': ' - '}
     return render_to_response('sala.html', {'registros': registros, 'sala': sala})            
     
-def salas_list(request, minutos=None):
+def salas_list(request, minutos=None, alertas=None, reconocidas=None):
     salas_objects = Sala.objects.all()
     salas = []
     for sala in salas_objects:
@@ -24,22 +24,25 @@ def salas_list(request, minutos=None):
                 persona = Persona.objects.get(rfid=estado.rfid)
             except Persona.DoesNotExist:
                 persona = {'nombre': 'Desconocido', 'legajo': ' - '}
-            if minutos is None:
-                masAntiguoQue = True
-            else:
-                masAntiguoQue = estado.registro.masAntiguoQue(minutos)
-                print masAntiguoQue
+            masAntiguoQue = estado.registro.masAntiguoQue(minutos)
+            esAlerta = estado.registro.esAlerta()
+            reconocido = estado.registro.reconocido
             salas.append({'id': sala.id, 'ccc': sala.ccc, 'nombre': sala.nombre, 'numero': sala.numero_de_sala, 'rfid': estado.rfid, 
                         'puerta_abierta': estado.puerta_abierta, 'movimiento': estado.movimiento, 'color': estado.setTipoYObtenerColor(),
-                        'persona': persona, 'timestamp': estado.registro.timestamp, 'registroid': estado.registro.id, 'masAntiguoQue': masAntiguoQue })
+                        'persona': persona, 'timestamp': estado.registro.timestamp, 'registro': estado.registro, 'masAntiguoQue': masAntiguoQue,
+                        'esAlerta': esAlerta, 'reconocido': reconocido})
     salas = [s for s in salas if s['masAntiguoQue']]
-    return render_to_response('salas.html', {'salas': salas})
+    if alertas == 'soloalertas':
+        salas = [s for s in salas if s['esAlerta']]
+    if reconocidas == 'soloreconocidas':
+        salas = [s for s in salas if s['reconocido']]
+    return render_to_response('salas.html', {'salas': salas, 'minutos': minutos, 'alertas': alertas, 'reconocidas': reconocidas})
 
 def reconocido(request, registroid, valor):
     try:
         registro = RegistroAcceso.objects.get(id=registroid)
     except RegistroAcceso.DoesNotExist:
-        return render_to_response('salas.html', {'salas': salas})
+        return redirect('/salas/')
 
     if valor == 'si':
         registro.reconocido = True
@@ -53,7 +56,7 @@ def reconocido(request, registroid, valor):
 
     if referrer:
         return redirect(referrer)
-    return render_to_response('salas.html', {'salas': salas})
+    return redirect('/salas/')
     
     
 
