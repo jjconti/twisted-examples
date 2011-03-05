@@ -26,6 +26,8 @@ Ver solo las salas con registros que hayan cambiado en m&aacute;s de: <a href="5
 <td>{{ sala.puerta_abierta|yesno:"Abierta,Cerrada" }}</td>
 <td>{{ sala.movimiento|yesno:"Si,No" }}</td>
 <td>{{ sala.timestamp|timesince }}</td>
+<td><a href="/registro/{{ sala.registroid }}/reconocido/si">Reconocer</a></td>
+<td><a href="/registro/{{ sala.registroid }}/reconocido/no">NO Reconocer</a></td>
 </tr>
 {% endfor %}
 </table>

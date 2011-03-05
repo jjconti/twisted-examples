@@ -36,6 +36,7 @@ class RegistroAcceso(models.Model):
     puerta_abierta = models.BooleanField()
     movimiento = models.BooleanField()
     tiempoDesdeNormalAnterior = models.IntegerField(blank=True, null=True)  # en minutos
+    reconocido = models.BooleanField(default=False)
     
     def __unicode__(self):
         return u"%s | %s | %d %d | %s" % (self.sala, self.rfid, self.puerta_abierta, self.movimiento, self.estado().esAlerta())
@@ -67,10 +68,8 @@ class Estado(object):
         self.puerta_abierta = puerta_abierta
         self.movimiento = movimiento
         self.color = self.setTipoYObtenerColor()
-        print self.color, 'acoloooor'
     
     def esAlerta(self):
-        print "es alerta?", self.tipo
         return self.tipo.startswith('alerta')
 
     def setTipoYObtenerColor(self):

@@ -1,5 +1,5 @@
 from models import *
-from django.shortcuts import render_to_response
+from django.shortcuts import render_to_response, redirect
 
 def index(request):
     return render_to_response('index.html', {})
@@ -30,11 +30,32 @@ def salas_list(request, minutos=None):
                 masAntiguoQue = estado.registro.masAntiguoQue(minutos)
                 print masAntiguoQue
             salas.append({'id': sala.id, 'ccc': sala.ccc, 'nombre': sala.nombre, 'numero': sala.numero_de_sala, 'rfid': estado.rfid, 
-                        'puerta_abierta': estado.puerta_abierta, 'movimiento': estado.movimiento, 'color': estado.get_color(),
-                        'persona': persona, 'timestamp': estado.registro.timestamp, 'masAntiguoQue': masAntiguoQue })
+                        'puerta_abierta': estado.puerta_abierta, 'movimiento': estado.movimiento, 'color': estado.setTipoYObtenerColor(),
+                        'persona': persona, 'timestamp': estado.registro.timestamp, 'registroid': estado.registro.id, 'masAntiguoQue': masAntiguoQue })
     salas = [s for s in salas if s['masAntiguoQue']]
-    print salas
     return render_to_response('salas.html', {'salas': salas})
+
+def reconocido(request, registroid, valor):
+    try:
+        registro = RegistroAcceso.objects.get(id=registroid)
+    except RegistroAcceso.DoesNotExist:
+        return render_to_response('salas.html', {'salas': salas})
+
+    if valor == 'si':
+        registro.reconocido = True
+        registro.save()
+    elif valor == 'no':
+        registro.reconocido = False
+        registro.save()
+    print valor
+    
+    referrer = request.META.get('HTTP_REFERER')
+
+    if referrer:
+        return redirect(referrer)
+    return render_to_response('salas.html', {'salas': salas})
+    
+    
 
 def persona_info(request, personaid):
     try:
