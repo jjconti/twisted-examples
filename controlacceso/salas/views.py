@@ -37,8 +37,8 @@ def salas_list(request, minutos=None, alertas=None, reconocidas=None):
     salas = [s for s in salas if s['masAntiguoQue']]
     if alertas == 'soloalertas':
         salas = [s for s in salas if s['esAlerta']]
-    if reconocidas == 'soloreconocidas':
-        salas = [s for s in salas if s['reconocido']]
+    if reconocidas == 'noreconocidas':
+        salas = [s for s in salas if not s['reconocido']]
     return render_to_response('salas.html', {'salas': salas, 'minutos': minutos, 'alertas': alertas, 'reconocidas': reconocidas}, context_instance=RequestContext(request))
 
 def reconocido(request, registroid, valor):

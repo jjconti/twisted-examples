@@ -9,10 +9,10 @@ Ver solo las salas con registros que hayan cambiado en m&aacute;s de: <a href="/
 {% else %}
     (<a href="/salas/{{ minutos }}/soloalertas/{{ reconocidas }}">solo alertas</a>)
 {% endif %}
-{% if reconocidas == "soloreconocidas" %} 
+{% if reconocidas == "noreconocidas" %} 
     (<a href="/salas/{{ minutos }}/{{ alertas }}/reconocidasyno">reconocidas y no</a>)
 {% else %}
-    (<a href="/salas/{{ minutos }}/{{ alertas }}/soloreconocidas">solo reconocidas</a>)
+    (<a href="/salas/{{ minutos }}/{{ alertas }}/noreconocidas">no reconocidas</a>)
 {% endif %}
 <br/>
 <br/>
@@ -63,6 +63,7 @@ Ver solo las salas con registros que hayan cambiado en m&aacute;s de: <a href="/
 {% get_comment_count for sala.registro as comment_count %}
 {{ comment_count }} comentario/s
 {% render_comment_list for sala.registro %}
+
 {% render_comment_form for sala.registro %}
 </td>
 </tr>

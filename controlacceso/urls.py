@@ -11,7 +11,7 @@ urlpatterns = patterns('',
     # (r'^controlacceso/', include('controlacceso.foo.urls')),
 
     (r'^$', index),
-    (r'^salas/(\d+)/(soloalertas|alertasyno)/(soloreconocidas|reconocidasyno)', salas_list),
+    (r'^salas/(\d+)/(soloalertas|alertasyno)/(noreconocidas|reconocidasyno)', salas_list),
     (r'^sala/(\d+)', sala_info),
     (r'^ocupante/(\d+)', persona_info),   
     (r'^registro/(\d+)/reconocido/(si|no)', reconocido),
