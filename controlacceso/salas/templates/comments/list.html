@@ -1,0 +1,7 @@
+<div class="comment_start"></div>
+{% for comment in comment_list %}
+    <div class="comment">
+       {{ comment.comment }} 
+       {{ comment.user }} - {{ comment.submit_date|timesince }}
+    </div>
+{% endfor %}

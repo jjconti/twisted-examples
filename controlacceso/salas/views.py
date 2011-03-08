@@ -1,5 +1,7 @@
 from models import *
 from django.shortcuts import render_to_response, redirect
+from django.contrib.auth.decorators import login_required
+from django.template import RequestContext
 
 def index(request):
     return render_to_response('index.html', {})
@@ -13,7 +15,8 @@ def sala_info(request, salaid):
         except Persona.DoesNotExist:
             r.persona = {'nombre': 'Desconocido', 'legajo': ' - '}
     return render_to_response('sala.html', {'registros': registros, 'sala': sala})            
-    
+
+@login_required
 def salas_list(request, minutos=None, alertas=None, reconocidas=None):
     salas_objects = Sala.objects.all()
     salas = []
@@ -36,7 +39,7 @@ def salas_list(request, minutos=None, alertas=None, reconocidas=None):
         salas = [s for s in salas if s['esAlerta']]
     if reconocidas == 'soloreconocidas':
         salas = [s for s in salas if s['reconocido']]
-    return render_to_response('salas.html', {'salas': salas, 'minutos': minutos, 'alertas': alertas, 'reconocidas': reconocidas})
+    return render_to_response('salas.html', {'salas': salas, 'minutos': minutos, 'alertas': alertas, 'reconocidas': reconocidas}, context_instance=RequestContext(request))
 
 def reconocido(request, registroid, valor):
     try:

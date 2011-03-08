@@ -1,0 +1,52 @@
+{% load comments i18n %}
+
+<script language="javascript">
+<!--
+
+var state = 'none';
+
+function showhide(layer_ref) {
+
+if (state == 'block') {
+state = 'none';
+}
+else {
+state = 'block';
+}
+if (document.all) { //IS IE 4 or 5 (or 6 beta)
+eval( "document.all." + layer_ref + ".style.display = state");
+}
+if (document.layers) { //IS NETSCAPE 4 or below
+document.layers[layer_ref].display = state;
+}
+if (document.getElementById &&!document.all) {
+hza = document.getElementById(layer_ref);
+hza.style.display = state;
+}
+}
+//-->
+</script> 
+
+<p><a href="#" onclick="showhide('div1');">Comentarios?</a></p>
+<div id="div1" style="display: none;">
+
+    <form action="{% comment_form_target %}" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="/salas/{{ minutos }}/{{ alertas }}/{{ reconocidas }}" />
+        {% for field in form %}
+            {% if field.is_hidden %}
+                {{ field }}
+            {% else %}
+                {% if field.name != "name" and field.name != "email" and field.name != "url" %}
+                    {% if field.errors %}{{ field.errors }}{% endif %}
+                    <p {% if field.errors %} class="error"{% endif %} {% ifequal field.name "honeypot" %} style="display:none;"{% endifequal %}>
+                    {{ field }}
+                    </p>
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+        <input type="submit" name="post" class="submit-post" value="{% trans "Comentar" %}" />
+    </form>
+
+</div> 
+

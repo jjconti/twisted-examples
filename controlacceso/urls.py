@@ -9,6 +9,7 @@ from salas.views import *
 urlpatterns = patterns('',
     # Example:
     # (r'^controlacceso/', include('controlacceso.foo.urls')),
+
     (r'^$', index),
     (r'^salas/(\d+)/(soloalertas|alertasyno)/(soloreconocidas|reconocidasyno)', salas_list),
     (r'^sala/(\d+)', sala_info),
@@ -21,4 +22,5 @@ urlpatterns = patterns('',
 
     # Uncomment the next line to enable the admin:
     (r'^admin/', include(admin.site.urls)),
+    (r'^comments/', include('django.contrib.comments.urls')),
 )

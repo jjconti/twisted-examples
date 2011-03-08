@@ -1,3 +1,6 @@
+{% load comments %}
+
+
 <h1>Salas</h2>
 
 Ver solo las salas con registros que hayan cambiado en m&aacute;s de: <a href="/salas/1/{{ alertas }}/{{ reconocidas }}">1</a> <a href="/salas/5/{{ alertas }}/{{ reconocidas }}">5</a> <a href="/salas/10/{{ alertas }}/{{ reconocidas }}">10</a> <a href="/salas/15/{{ alertas }}/{{ reconocidas }}">15</a> [minutos]
@@ -26,6 +29,7 @@ Ver solo las salas con registros que hayan cambiado en m&aacute;s de: <a href="/
 <td>Tiempo desde el &uacute;ltimo cambio</td>
 <td>Reconocido?</td>
 <td>Acci&oacute;n</td>
+<td>Comentarios</td>
 </tr>
 {% for sala in salas %}
 <tr style="background-color:{{ sala.color }}">
@@ -54,6 +58,12 @@ Ver solo las salas con registros que hayan cambiado en m&aacute;s de: <a href="/
 {% if sala.alerta_verde %}
 / <a href="/registro/{{ sala.registro.id }}/registrarsalida">Registrar salida</a>
 {% endif %}
+</td>
+<td>
+{% get_comment_count for sala.registro as comment_count %}
+{{ comment_count }} comentario/s
+{% render_comment_list for sala.registro %}
+{% render_comment_form for sala.registro %}
 </td>
 </tr>
 {% endfor %}

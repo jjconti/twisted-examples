@@ -92,6 +92,7 @@ INSTALLED_APPS = (
     'salas',
     # Uncomment the next line to enable the admin:
     'django.contrib.admin',
+    'django.contrib.comments',
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
 )
