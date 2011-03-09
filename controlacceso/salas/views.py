@@ -27,7 +27,7 @@ def salas_list(request, minutos=None, alertas=None, reconocidas=None):
                 persona = Persona.objects.get(rfid=estado.rfid)
             except Persona.DoesNotExist:
                 persona = {'nombre': 'Desconocido', 'legajo': ' - '}
-            if minutos == 0:
+            if minutos == '0':
                 masAntiguoQue = True
             else:
                 masAntiguoQue = estado.registro.masAntiguoQue(minutos)
