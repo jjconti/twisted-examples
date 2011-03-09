@@ -44,7 +44,7 @@ class RegistroAcceso(models.Model):
     def estado(self):
         return Estado(self, self.rfid, self.puerta_abierta, self.movimiento)
 
-    def esAlerta(self, minutos=13):
+    def esAlerta(self, minutos=2):
         '''Se considera al registro en estado de alerta, si su estado es de alerta
            y ha estado en algun estado de alerta por los ultimos n minutos.'''
         print self.tiempoDesdeNormal() > minutos, "es alerta"
