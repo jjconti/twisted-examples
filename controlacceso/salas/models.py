@@ -88,16 +88,16 @@ class Estado(object):
         return self.tipo == 'alerta_verde'
 
     def setTipoYObtenerColor(self):
-        if self.rfid == '' and not self.puerta_abierta and not self.movimiento:
+        if self.rfid == '0' and not self.puerta_abierta and not self.movimiento:
             self.tipo = 'normal'
             return NORMAL
-        elif self.rfid == '' and self.puerta_abierta and not self.movimiento:
+        elif self.rfid == '0' and self.puerta_abierta and not self.movimiento:
             self.tipo = 'alerta_naranja'
             return ALERTANARANJA
-        elif self.rfid == '' and not self.puerta_abierta and self.movimiento:
+        elif self.rfid == '0' and not self.puerta_abierta and self.movimiento:
             self.tipo = 'alerta_roja'
             return ALERTAROJA
-        elif self.rfid == '' and self.puerta_abierta and self.movimiento:
+        elif self.rfid == '0' and self.puerta_abierta and self.movimiento:
             self.tipo = 'alerta_roja'
             return ALERTAROJA
         elif self.rfid and not self.puerta_abierta and not self.movimiento:
