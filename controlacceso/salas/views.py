@@ -16,7 +16,7 @@ def sala_info(request, salaid):
             r.persona = {'nombre': 'Desconocido', 'legajo': ' - '}
     return render_to_response('sala.html', {'registros': registros, 'sala': sala})            
 
-@login_required
+#@login_required
 def salas_list(request, minutos=None, alertas=None, reconocidas=None):
     salas_objects = Sala.objects.all()
     salas = []
@@ -27,7 +27,10 @@ def salas_list(request, minutos=None, alertas=None, reconocidas=None):
                 persona = Persona.objects.get(rfid=estado.rfid)
             except Persona.DoesNotExist:
                 persona = {'nombre': 'Desconocido', 'legajo': ' - '}
-            masAntiguoQue = estado.registro.masAntiguoQue(minutos)
+            if minutos == 0:
+                masAntiguoQue = True
+            else:
+                masAntiguoQue = estado.registro.masAntiguoQue(minutos)
             esAlerta = estado.registro.esAlerta()
             reconocido = estado.registro.reconocido
             salas.append({'id': sala.id, 'ccc': sala.ccc, 'nombre': sala.nombre, 'numero': sala.numero_de_sala, 'rfid': estado.rfid, 
