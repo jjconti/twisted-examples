@@ -2,6 +2,6 @@
 {% for comment in comment_list %}
     <div class="comment">
        {{ comment.comment }} 
-       {{ comment.user }} - {{ comment.submit_date|timesince }}
+       {{ comment.user }} - {{ comment.submit_date }}
     </div>
 {% endfor %}
